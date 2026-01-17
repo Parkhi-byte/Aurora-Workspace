@@ -20,9 +20,7 @@ const PasswordManager = React.lazy(() => import('./pages/PasswordManager'));
 const Kanban = React.lazy(() => import('./pages/Kanban'));
 const Pricing = React.lazy(() => import('./pages/Pricing'));
 const About = React.lazy(() => import('./pages/About'));
-const MasterDashboard = React.lazy(() => import('./pages/MasterDashboard'));
 const Profile = React.lazy(() => import('./pages/Profile'));
-import MasterRoute from './components/MasterRoute';
 import './index.css';
 
 // Public route wrapper (redirects to home if already logged in)
@@ -175,17 +173,6 @@ function AppRoutes() {
                 <Kanban />
               </Layout>
             </ProtectedRoute>
-          }
-        />
-
-        <Route
-          path="/master-dashboard"
-          element={
-            <MasterRoute>
-              <Layout>
-                <MasterDashboard />
-              </Layout>
-            </MasterRoute>
           }
         />
 

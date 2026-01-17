@@ -2,15 +2,15 @@ import React from 'react';
 import { Link } from 'react-router-dom';
 import { ArrowRight } from 'lucide-react';
 
-const FeatureCard = ({ title, description, icon: Icon, path, color, iconBg, stats }) => {
+const FeatureCard = ({ title, description, icon: Icon, path, color, iconBg, stats, gradient }) => {
   return (
     <Link to={path} className="block group">
       <div className="relative glass-card rounded-2xl p-6 h-full overflow-hidden group">
         {/* Subtle Gradient Glow */}
-        <div className={`absolute inset-0 bg-gradient-to-br ${color} opacity-0 group-hover:opacity-10 transition-opacity duration-500`}></div>
+        <div className={`absolute inset-0 bg-gradient-to-br ${gradient} opacity-0 group-hover:opacity-10 transition-opacity duration-500`}></div>
 
         {/* Decorative Top Line */}
-        <div className={`absolute top-0 left-0 w-full h-1 bg-gradient-to-r ${color} transform scale-x-0 group-hover:scale-x-100 transition-transform duration-500 origin-left`}></div>
+        <div className={`absolute top-0 left-0 w-full h-1 bg-gradient-to-r ${gradient} transform scale-x-0 group-hover:scale-x-100 transition-transform duration-500 origin-left`}></div>
 
         <div className="relative z-10 flex flex-col h-full">
           {/* Icon */}

@@ -31,12 +31,7 @@ const Home = () => {
   // We map them to match the Landing Page specific styling
   const features = APP_FEATURES.map(f => ({
     ...f,
-    stats: f.landingStats,
-    // Map colors for landing page (light theme compatible)
-    iconBg: f.title === "Video Conference" ? "bg-blue-100 dark:bg-blue-900/20" :
-      f.title === "Team Chat" ? "bg-purple-100 dark:bg-purple-900/20" :
-        f.title === "Documents" ? "bg-orange-100 dark:bg-orange-900/20" :
-          "bg-green-100 dark:bg-green-900/20"
+    stats: f.landingStats
   }));
 
   return (

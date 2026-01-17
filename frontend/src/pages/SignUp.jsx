@@ -1,95 +1,37 @@
 import React, { useState } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext';
-import { UserPlus, User, Shield, ArrowRight, CheckCircle, Mail, Lock } from 'lucide-react';
+import { UserPlus, User, Shield, ArrowRight, CheckCircle, Mail, Lock, Crown } from 'lucide-react';
 
 const SignUp = () => {
   const [name, setName] = useState('');
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [confirmPassword, setConfirmPassword] = useState('');
-  const [role, setRole] = useState('member');
-  const [error, setError] = useState('');
-  const [loading, setLoading] = useState(false);
-
-  const { signup } = useAuth();
-  const navigate = useNavigate();
-
-  const handleSubmit = async (e) => {
-    e.preventDefault();
-    setError('');
-
-    if (password !== confirmPassword) {
-      setError('Passwords do not match');
-      return;
-    }
-
-    if (password.length < 6) {
-      setError('Password must be at least 6 characters');
-      return;
-    }
-
-    setLoading(true);
-
-    const result = signup(name, email, password, role);
-
-    if (result.success) {
-      navigate('/');
-    } else {
-      setError(result.error || 'Sign up failed');
-    }
-
-    setLoading(false);
-  };
-
-  return (
-    <div className="min-h-screen bg-white dark:bg-gray-900 flex">
-      {/* Left Side - Form */}
-      <div className="flex-1 flex items-center justify-center px-4 sm:px-6 lg:px-8 py-12 bg-white dark:bg-gray-900">
-        <div className="max-w-md w-full space-y-8">
-          <div className="text-center">
-            <div className="inline-flex items-center justify-center w-12 h-12 rounded-xl bg-aurora-100 dark:bg-aurora-900/30 text-aurora-600 dark:text-aurora-400 mb-6">
-              <UserPlus size={24} />
-            </div>
-            <h2 className="text-3xl font-extrabold text-gray-900 dark:text-white tracking-tight">
-              Create your account
-            </h2>
-            <p className="mt-2 text-sm text-gray-600 dark:text-gray-400">
-              Start your 14-day free trial. No credit card required.
-            </p>
-          </div>
-
-          {error && (
-            <div className="p-4 rounded-xl bg-red-50 dark:bg-red-900/20 border border-red-200 dark:border-red-800 text-red-600 dark:text-red-400 text-sm font-medium animate-fade-in">
-              {error}
-            </div>
-          )}
-
-          <form className="mt-8 space-y-6" onSubmit={handleSubmit}>
-            <div className="space-y-4">
-              {/* Role Toggle */}
+  const [role, setRole] = useState('team_member');
+  // ... (lines 12-73)
               <div className="grid grid-cols-2 gap-3 p-1 bg-gray-100 dark:bg-gray-800 rounded-xl">
                 <button
                   type="button"
-                  onClick={() => setRole('member')}
-                  className={`flex items-center justify-center space-x-2 py-2.5 text-sm font-medium rounded-lg transition-all ${role === 'member'
+                  onClick={() => setRole('team_member')}
+                  className={`flex items-center justify-center space-x-2 py-2.5 text-sm font-medium rounded-lg transition-all ${role === 'team_member'
                     ? 'bg-white dark:bg-gray-700 text-gray-900 dark:text-white shadow-sm'
                     : 'text-gray-500 dark:text-gray-400 hover:text-gray-900 dark:hover:text-white'
                     }`}
                 >
                   <User size={16} />
-                  <span>Team Member</span>
+                  <span>Member</span>
                 </button>
                 <button
                   type="button"
-                  onClick={() => setRole('admin')}
-                  className={`flex items-center justify-center space-x-2 py-2.5 text-sm font-medium rounded-lg transition-all ${role === 'admin'
+                  onClick={() => setRole('team_head')}
+                  className={`flex items-center justify-center space-x-2 py-2.5 text-sm font-medium rounded-lg transition-all ${role === 'team_head'
                     ? 'bg-white dark:bg-gray-700 text-gray-900 dark:text-white shadow-sm'
                     : 'text-gray-500 dark:text-gray-400 hover:text-gray-900 dark:hover:text-white'
                     }`}
                 >
                   <Shield size={16} />
-                  <span>Admin</span>
+                  <span>Team Head</span>
                 </button>
               </div>
 
@@ -173,7 +115,7 @@ const SignUp = () => {
                   </div>
                 </div>
               </div>
-            </div>
+            </div >
 
             <button
               type="submit"
@@ -192,12 +134,12 @@ const SignUp = () => {
                 </Link>
               </p>
             </div>
-          </form>
-        </div>
-      </div>
+          </form >
+        </div >
+      </div >
 
-      {/* Right Side - Features */}
-      <div className="hidden lg:block relative w-0 flex-1 bg-gray-900">
+  {/* Right Side - Features */ }
+  < div className = "hidden lg:block relative w-0 flex-1 bg-gray-900" >
         <div className="absolute inset-0 bg-gradient-to-bl from-purple-900 to-gray-900 opacity-90"></div>
         <div className="absolute inset-0 flex flex-col justify-center px-20">
           <h2 className="text-3xl font-bold text-white mb-8">
@@ -219,8 +161,8 @@ const SignUp = () => {
             ))}
           </div>
         </div>
-      </div>
-    </div>
+      </div >
+    </div >
   );
 };
 

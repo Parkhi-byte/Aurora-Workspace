@@ -17,7 +17,7 @@ const userSchema = mongoose.Schema({
     },
     role: {
         type: String,
-        enum: ['team_member', 'team_head', 'admin', 'master'], // Added master
+        enum: ['team_member', 'team_head', 'admin'],
         default: 'team_member',
     },
     teamMembers: [{
