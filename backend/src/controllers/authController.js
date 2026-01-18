@@ -6,11 +6,27 @@ import generateToken from '../utils/generateToken.js';
 // @route   POST /api/auth/login
 // @access  Public
 const authUser = asyncHandler(async (req, res) => {
-    const { email, password } = req.body;
+    const { email, password, role } = req.body;
 
     const user = await User.findOne({ email });
 
     if (user && (await user.matchPassword(password))) {
+        console.log(`Login attempt for ${email}. Stored role: ${user.role}, Requested role: ${role}`);
+        let isValidRole = false;
+
+        if (user.role === role) {
+            isValidRole = true;
+        } else if (user.role === 'admin' && role === 'team_head') {
+            // Allow Admins to login as Team Heads
+            isValidRole = true;
+        }
+
+        if (role && !isValidRole) {
+            console.log('Role mismatch');
+            res.status(401);
+            throw new Error('Invalid role selected.');
+        }
+
         res.json({
             _id: user._id,
             name: user.name,
