@@ -6,8 +6,8 @@ import Activity from '../models/Activity.js';
 
 // Helper to get stats properly
 const getMemberStats = async (memberId) => {
-    const tasksAssigned = await Task.countDocuments({ user: memberId });
-    const tasksCompleted = await Task.countDocuments({ user: memberId, status: 'Done' });
+    const tasksAssigned = await Task.countDocuments({ assignedTo: memberId });
+    const tasksCompleted = await Task.countDocuments({ assignedTo: memberId, status: 'Done' });
     return { tasksAssigned, tasksCompleted };
 };
 

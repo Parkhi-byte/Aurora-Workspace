@@ -230,7 +230,8 @@ export const useKanban = () => {
                 priority: statusOrTask.priority,
                 status: statusOrTask.status,
                 tag: statusOrTask.tag || 'General',
-                assignedTo: statusOrTask.assignedTo?._id || ''
+                assignedTo: statusOrTask.assignedTo?._id || '',
+                dueDate: statusOrTask.dueDate ? new Date(statusOrTask.dueDate).toISOString().split('T')[0] : ''
             });
         }
         setIsModalOpen(true);
