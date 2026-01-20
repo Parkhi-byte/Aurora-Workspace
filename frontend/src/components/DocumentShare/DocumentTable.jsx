@@ -46,7 +46,9 @@ const DocumentTable = ({ loading, filteredDocs, handleDelete, handleShare, getFi
                                                 <div className="h-6 w-6 rounded-full bg-gradient-to-br from-aurora-500 to-purple-500 flex items-center justify-center text-[10px] text-white font-bold">
                                                     U
                                                 </div>
-                                                <span className="ml-2 text-sm text-gray-600 dark:text-gray-300">You</span>
+                                                <span className="ml-2 text-sm text-gray-600 dark:text-gray-300">
+                                                    {doc.uploadedBy?.name || 'Unknown'}
+                                                </span>
                                             </div>
                                         </td>
                                         <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500 dark:text-gray-400">

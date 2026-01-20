@@ -12,7 +12,14 @@ import documentRoutes from './routes/documentRoutes.js';
 import passwordRoutes from './routes/passwordRoutes.js';
 import masterRoutes from './routes/masterRoutes.js';
 
+import fs from 'fs';
+
 dotenv.config();
+
+const uploadsDir = path.join(path.resolve(), 'uploads');
+if (!fs.existsSync(uploadsDir)) {
+  fs.mkdirSync(uploadsDir);
+}
 
 // Connect to database
 try {
@@ -62,6 +69,9 @@ app.use('/api/team', teamRoutes);
 app.use('/api/documents', documentRoutes);
 app.use('/api/passwords', passwordRoutes);
 app.use('/api/master', masterRoutes);
+
+const uploadsPath = path.join(__dirname, '../uploads');
+app.use('/uploads', express.static(uploadsPath));
 
 // Serve Frontend in Production
 if (process.env.NODE_ENV === 'production') {

@@ -3,6 +3,11 @@ import mongoose from 'mongoose';
 const documentSchema = mongoose.Schema({
     user: {
         type: mongoose.Schema.Types.ObjectId,
+        required: true, // Legacy field, kept for safety
+        ref: 'User',
+    },
+    uploadedBy: {
+        type: mongoose.Schema.Types.ObjectId,
         required: true,
         ref: 'User',
     },
@@ -12,19 +17,25 @@ const documentSchema = mongoose.Schema({
     },
     type: {
         type: String,
-        required: true, // e.g., 'pdf', 'doc', 'image'
+        required: true,
     },
     size: {
-        type: String, // e.g., '2.4 MB'
+        type: String,
         required: true,
     },
     url: {
-        type: String, // In a real app, this would be S3 URL. For now, a mock or local path.
+        type: String,
         required: true,
     },
     folder: {
-        type: String,
-        default: 'General',
+        type: mongoose.Schema.Types.ObjectId,
+        ref: 'Folder',
+        default: null,
+    },
+    team: {
+        type: mongoose.Schema.Types.ObjectId,
+        ref: 'Team',
+        required: true
     },
 }, {
     timestamps: true,

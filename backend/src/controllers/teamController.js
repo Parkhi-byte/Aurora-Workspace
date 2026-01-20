@@ -205,45 +205,68 @@ const addTeamMember = asyncHandler(async (req, res) => {
 });
 
 // @desc    Remove team member
-// @route   DELETE /api/team/:teamId/member/:memberId   <-- New Preferred
-// @route   DELETE /api/team/:id                        <-- Legacy (assumes default team?)
-// Let's handle legacy route param as :id which is memberId, and infer team.
+// @route   DELETE /api/team/:teamId/member/:memberId
+// @route   DELETE /api/team/:id (Legacy - removes from ALL teams)
 const removeTeamMember = asyncHandler(async (req, res) => {
-    // We might get :id (memberId) from legacy route
-    // Or we should update routes. Let's try to be smart.
-    // If it is legacy, we iterate all user's teams and remove member? 
-    // Or we switch routes.
+    const { teamId, memberId } = req.params;
 
-    // THE ROUTE DEFINITION IS: router.route('/:id').delete(...)
-    // So 'id' is likely the memberId in the old code.
-    // To support multiple teams, we really need the teamId. 
-    // BUT, we can just remove the user from ANY team owned by req.user for now to be safe/simple.
+    // Case 1: Specific Team Removal (New Route: /:teamId/member/:memberId)
+    // We check if memberId is passed as second param, meaning the first was teamId
+    // Express router params: req.params.teamId, req.params.memberId
+    if (teamId && memberId) {
+        const team = await Team.findOne({ _id: teamId, owner: req.user._id });
 
-    const memberId = req.params.id; // from /api/team/:id
+        if (!team) {
+            res.status(404);
+            throw new Error('Team not found or you are not the owner');
+        }
 
-    // Find all teams owned by user that contain this member
-    const teams = await Team.find({ owner: req.user._id, members: memberId });
+        if (!team.members.includes(memberId)) {
+            res.status(404);
+            throw new Error('Member not found in this team');
+        }
 
-    if (teams.length === 0) {
-        // Maybe it's a teamId if we changed routes? No, frontend sends memberId.
-        res.status(404);
-        throw new Error('Member not found in your teams');
-    }
-
-    for (const team of teams) {
         team.members = team.members.filter(id => id.toString() !== memberId);
         await team.save();
 
-        // Log activity
         await Activity.create({
             teamOwner: req.user._id,
             team: team._id,
             text: `Removed member from team ${team.name}`,
             type: 'member_remove'
         });
+
+        return res.status(200).json({ id: memberId, teamId: team._id });
     }
 
-    res.status(200).json({ id: memberId });
+    // Case 2: Legacy Global Removal (Route: /:id) -> req.params.id is memberId
+    // This is destructive/broad, but kept for backward compatibility if needed.
+    // Ideally user should migrate to specific removal.
+    const legacyMemberId = req.params.id;
+    if (legacyMemberId) {
+        const teams = await Team.find({ owner: req.user._id, members: legacyMemberId });
+
+        if (teams.length === 0) {
+            res.status(404);
+            throw new Error('Member not found in your teams');
+        }
+
+        for (const team of teams) {
+            team.members = team.members.filter(id => id.toString() !== legacyMemberId);
+            await team.save();
+
+            await Activity.create({
+                teamOwner: req.user._id,
+                team: team._id,
+                text: `Removed member from team ${team.name}`,
+                type: 'member_remove'
+            });
+        }
+        return res.status(200).json({ id: legacyMemberId });
+    }
+
+    res.status(400);
+    throw new Error('Invalid request parameters');
 });
 
 // @desc    Update team details (name, description)

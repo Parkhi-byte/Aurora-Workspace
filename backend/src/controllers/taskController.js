@@ -33,6 +33,9 @@ const getTasks = asyncHandler(async (req, res) => {
 // @desc    Set task (Admin/Head only)
 // @route   POST /api/tasks
 // @access  Private
+// @desc    Set task (Admin/Head only)
+// @route   POST /api/tasks
+// @access  Private
 const setTask = asyncHandler(async (req, res) => {
     if (!req.body.title) {
         res.status(400);
@@ -45,13 +48,36 @@ const setTask = asyncHandler(async (req, res) => {
         throw new Error('Only Team Heads can create tasks');
     }
 
-    // Find the team this user manages (Assuming single team for now, or use first one)
-    // Ideally we should pass teamId from frontend, but we'll default to the first owned team
-    const team = await Team.findOne({ owner: req.user.id });
+    // Require teamId
+    // If user has old frontend code, they might not send teamId. 
+    // We should try to gracefully handle it or force it.
+    // Let's look for req.body.teamId
+    let teamId = req.body.teamId;
 
+    if (!teamId) {
+        // Fallback: If no teamId provided, try to find the FIRST team owned by user (Legacy behavior)
+        const team = await Team.findOne({ owner: req.user.id });
+        if (!team) {
+            res.status(404);
+            throw new Error('You need to create a Team first');
+        }
+        teamId = team._id;
+    }
+
+    // Verify ownership of the team
+    const team = await Team.findOne({ _id: teamId, owner: req.user.id });
     if (!team) {
-        res.status(404);
-        throw new Error('You need to create a Team first');
+        res.status(403);
+        throw new Error('You can only create tasks for teams you own');
+    }
+
+    // If assigning to a user, verify they are in this team
+    if (req.body.assignedTo) {
+        const isMember = team.members.includes(req.body.assignedTo);
+        if (!isMember) {
+            res.status(400);
+            throw new Error('Assigned user is not a member of this team');
+        }
     }
 
     const task = await Task.create({
@@ -62,12 +88,10 @@ const setTask = asyncHandler(async (req, res) => {
         tag: req.body.tag || 'General',
         user: req.user.id, // Creator
         team: team._id,
-        assignedTo: req.body.assignedTo || null // ObjectId of member
+        assignedTo: req.body.assignedTo || null
     });
 
-    // Populate assignedTo for immediate frontend update
     const populatedTask = await Task.findById(task._id).populate('assignedTo', 'name email');
-
     res.status(200).json(populatedTask);
 });
 
@@ -82,18 +106,16 @@ const updateTask = asyncHandler(async (req, res) => {
         throw new Error('Task not found');
     }
 
-    // Check for user
     if (!req.user) {
         res.status(401);
         throw new Error('User not found');
     }
 
-    // Permission Logic
     const isCreator = task.user.toString() === req.user.id;
     const isAssigned = task.assignedTo && task.assignedTo.toString() === req.user.id;
     const isHead = req.user.role === 'team_head' || req.user.role === 'admin';
 
-    // 1. Team Head/Admin: Can update ANYTHING
+    // 1. Team Head/Admin/Creator: Can update EVERYTHING
     if (isHead || isCreator) {
         const updatedTask = await Task.findByIdAndUpdate(req.params.id, req.body, {
             new: true,
@@ -101,25 +123,32 @@ const updateTask = asyncHandler(async (req, res) => {
         return res.status(200).json(updatedTask);
     }
 
-    // 2. Member: Can ONLY update if assigned to them
+    // 2. Member: Can ONLY update STATUS, and only if assigned to them
     if (req.user.role === 'team_member') {
         if (!isAssigned) {
             res.status(403);
             throw new Error('You can only update tasks assigned to you');
         }
 
-        // Optional: Restrict Member to only status updates?
-        // User said "members complete only their assigned tasks". 
-        // We'll allow full update for simplicity, or just status if needed.
-        // Let's assume updating status is the main goal, but editing description is nice too.
+        // Restrict updates to only 'status'
+        // If they try to change title/desc/priority, ignore those or throw error?
+        // Let's just create an update object with ONLY status.
+        const { status } = req.body;
 
-        const updatedTask = await Task.findByIdAndUpdate(req.params.id, req.body, {
+        // If they are trying to send other fields, we could error, 
+        // but for better UX just ignore them and only apply status if present.
+        if (!status) {
+            // If they sent a request without status (e.g. edit description), deny it.
+            res.status(403);
+            throw new Error('Members can only update task status');
+        }
+
+        const updatedTask = await Task.findByIdAndUpdate(req.params.id, { status }, {
             new: true,
         }).populate('assignedTo', 'name email');
         return res.status(200).json(updatedTask);
     }
 
-    // Default Deny
     res.status(403);
     throw new Error('Not authorized to update this task');
 });

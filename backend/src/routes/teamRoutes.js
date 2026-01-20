@@ -14,14 +14,17 @@ router.route('/')
 
 router.post('/create', admin, createNewTeam);
 
-
 router.route('/activity/:teamId')
     .get(getTeamActivity);
 
 // Route for deleting a specific team
 router.delete('/delete/:teamId', admin, deleteTeam);
 
+// Remove member from specific team
+router.delete('/:teamId/member/:memberId', admin, removeTeamMember);
+
+// Legacy route (careful with this one, maybe deprecate or keep for safety)
 router.route('/:id')
-    .delete(admin, removeTeamMember); // Legacy/Member removal (id is memberId)
+    .delete(admin, removeTeamMember); // id is memberId, removes from all teams if not specific
 
 export default router;

@@ -16,6 +16,8 @@ ChartJS.register(ArcElement, Tooltip, Legend, CategoryScale, LinearScale, BarEle
 export const useKanban = () => {
     const { user } = useAuth();
     const [tasks, setTasks] = useState([]);
+    const [teams, setTeams] = useState([]); // Store all teams
+    const [selectedTeam, setSelectedTeam] = useState(null); // Currently selected team
     const [loading, setLoading] = useState(true);
     const [isModalOpen, setIsModalOpen] = useState(false);
     const [editingTask, setEditingTask] = useState(null);
@@ -30,61 +32,77 @@ export const useKanban = () => {
         tag: 'General'
     });
 
-    const [teamMembers, setTeamMembers] = useState([]);
-
-    const fetchTasks = useCallback(async () => {
+    // Fetch Data
+    const fetchData = useCallback(async () => {
         if (!user || !user.token) return;
+        setLoading(true);
         try {
+            // 1. Fetch Teams
+            const teamResponse = await fetch('/api/team', {
+                headers: { 'Authorization': `Bearer ${user.token}` },
+            });
+            const teamData = await teamResponse.json();
+
+            let currentTeams = [];
+            if (teamResponse.ok) {
+                currentTeams = Array.isArray(teamData) ? teamData : [];
+                setTeams(currentTeams);
+
+                // Set default team if none selected
+                if (!selectedTeam && currentTeams.length > 0) {
+                    setSelectedTeam(currentTeams[0]);
+                } else if (selectedTeam) {
+                    // Update the selected team object with fresh data if it exists
+                    const updatedSelected = currentTeams.find(t => t.id === selectedTeam.id);
+                    if (updatedSelected) setSelectedTeam(updatedSelected);
+                }
+            }
+
+            // 2. Fetch Tasks
             const response = await fetch('/api/tasks', {
                 headers: { 'Authorization': `Bearer ${user.token}` },
             });
             const data = await response.json();
             if (response.ok) setTasks(data);
 
-            // Also fetch team members for assignment (if head/admin)
-            // Even members might need to see who is on the team, but assignment is restricted.
-            // We fetch teams to get members.
-            const teamResponse = await fetch('/api/team', {
-                headers: { 'Authorization': `Bearer ${user.token}` },
-            });
-            const teamData = await teamResponse.json();
-
-            if (teamResponse.ok) {
-                // Aggregate members from all teams
-                const allMembers = [];
-                const seenEmails = new Set();
-
-                teamData.forEach(team => {
-                    team.members.forEach(member => {
-                        if (!seenEmails.has(member.email)) {
-                            seenEmails.add(member.email);
-                            allMembers.push(member);
-                        }
-                    });
-                });
-                setTeamMembers(allMembers);
-            }
-
         } catch (error) {
             console.error('Error fetching data:', error);
-            toast.error('Failed to fetch tasks');
+            toast.error('Failed to fetch data');
         } finally {
             setLoading(false);
         }
-    }, [user]);
+    }, [user, selectedTeam]); // dependent on selectedTeam ID stability? No, simpler to just run on mount/user change.
+
+    // Better to split fetch so selecting team doesn't re-fetch everything
 
     useEffect(() => {
-        fetchTasks();
-    }, [fetchTasks]);
+        fetchData();
+    }, [user]); // Run once on mount/user change
 
+    // Derived State: filteredTasks by TEAM and Search
     const filteredTasks = useMemo(() => {
+        if (!selectedTeam) return [];
+
         return tasks.filter(task => {
+            // Filter by Team (Task.team is ObjectId, selectedTeam.id is string)
+            // Legacy tasks might not have team, or we might want to show them in a specific way?
+            // For now, STRICT filtering by team.
+            // Check if task.team matches selectedTeam.id
+            const taskTeamId = typeof task.team === 'object' ? task.team._id : task.team; // Populate check
+            const matchesTeam = taskTeamId === selectedTeam.id;
+
             const matchesSearch = task.title.toLowerCase().includes(searchQuery.toLowerCase()) ||
                 task.description.toLowerCase().includes(searchQuery.toLowerCase());
             const matchesPriority = filterPriority === 'all' || task.priority === filterPriority;
-            return matchesSearch && matchesPriority;
+
+            return matchesTeam && matchesSearch && matchesPriority;
         });
-    }, [tasks, searchQuery, filterPriority]);
+    }, [tasks, searchQuery, filterPriority, selectedTeam]);
+
+    // Derived Members for Dropdown (from selectedTeam)
+    const teamMembers = useMemo(() => {
+        return selectedTeam ? selectedTeam.members : [];
+    }, [selectedTeam]);
 
     const groupedTasks = useMemo(() => ({
         todo: filteredTasks.filter(t => t.status === 'To Do'),
@@ -158,16 +176,16 @@ export const useKanban = () => {
                 });
 
                 if (!response.ok) {
-                    fetchTasks();
+                    fetchData();
                     toast.error('Failed to update task status');
                 }
             } catch (error) {
                 console.error('Error updating task status:', error);
                 toast.error('Failed to update task status');
-                fetchTasks();
+                fetchData();
             }
         }
-    }, [tasks, user, fetchTasks]);
+    }, [tasks, user, fetchData]);
 
     const handleDeleteTask = useCallback(async (taskId) => {
         if (!window.confirm('Are you sure you want to delete this task?')) return;
@@ -229,6 +247,7 @@ export const useKanban = () => {
 
     const handleSaveTask = useCallback(async (taskData) => {
         if (!user || !user.token) return;
+        if (!selectedTeam) return toast.error("No team selected");
 
         try {
             const url = editingTask
@@ -237,13 +256,19 @@ export const useKanban = () => {
 
             const method = editingTask ? 'PUT' : 'POST';
 
+            // Include teamId for new tasks
+            const payload = { ...taskData };
+            if (!editingTask) {
+                payload.teamId = selectedTeam.id;
+            }
+
             const response = await fetch(url, {
                 method,
                 headers: {
                     'Content-Type': 'application/json',
                     'Authorization': `Bearer ${user.token}`
                 },
-                body: JSON.stringify(taskData)
+                body: JSON.stringify(payload)
             });
 
             if (response.ok) {
@@ -257,16 +282,19 @@ export const useKanban = () => {
                 });
                 closeModal();
                 toast.success(editingTask ? 'Task updated successfully' : 'Task created successfully');
+            } else {
+                const errData = await response.json();
+                toast.error(errData.message || 'Failed to save task');
             }
         } catch (error) {
             console.error('Error saving task:', error);
             toast.error('Failed to save task');
         }
-    }, [user, editingTask, closeModal]);
+    }, [user, editingTask, closeModal, selectedTeam]);
 
     return {
         tasks, loading, isModalOpen, editingTask, showAnalytics, setShowAnalytics, searchQuery, setSearchQuery, filterPriority, setFilterPriority, formData, setFormData,
-        groupedTasks, stats, priorityData, statusData, teamMembers,
+        groupedTasks, stats, priorityData, statusData, teamMembers, teams, selectedTeam, setSelectedTeam,
         onDragEnd, handleDeleteTask, openModal, closeModal, handleSaveTask
     };
 }

@@ -220,7 +220,7 @@ export const useTeamManagement = () => {
         if (window.confirm('Are you sure you want to remove this member?')) {
             try {
                 const token = user?.token;
-                const res = await fetch(`/api/team/${memberId}`, {
+                const res = await fetch(`/api/team/${currentTeamId}/member/${memberId}`, {
                     method: 'DELETE',
                     headers: {
                         'Authorization': `Bearer ${token}`

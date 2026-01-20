@@ -5,13 +5,13 @@ import { useKanban } from '../hooks/useKanban/useKanban';
 import KanbanColumn from '../components/Kanban/KanbanColumn';
 import TaskModal from '../components/Kanban/TaskModal';
 import { Doughnut, Bar } from 'react-chartjs-2';
-import { Plus, Search, PieChart as PieChartIcon, CheckSquare, Clock, Filter, List } from 'lucide-react';
+import { Plus, Search, PieChart as PieChartIcon, CheckSquare, Clock, Filter, List, ChevronDown } from 'lucide-react';
 import { DragDropContext } from '@hello-pangea/dnd';
 
 const Kanban = () => {
   const {
     loading, isModalOpen, editingTask, showAnalytics, setShowAnalytics, searchQuery, setSearchQuery, filterPriority, setFilterPriority, formData, setFormData,
-    groupedTasks, stats, priorityData, statusData, teamMembers,
+    groupedTasks, stats, priorityData, statusData, teamMembers, teams, selectedTeam, setSelectedTeam,
     onDragEnd, handleDeleteTask, openModal, closeModal, handleSaveTask
   } = useKanban();
 
@@ -57,6 +57,24 @@ const Kanban = () => {
                 onChange={(e) => setSearchQuery(e.target.value)}
                 className="w-full pl-10 pr-4 py-2.5 bg-gray-50 dark:bg-gray-800/50 border border-gray-200 dark:border-gray-700 rounded-xl text-sm focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500 transition-all shadow-sm"
               />
+            </div>
+
+            <div className="relative">
+              <select
+                value={selectedTeam?.id || ''}
+                onChange={(e) => {
+                  const team = teams.find(t => t.id === e.target.value);
+                  setSelectedTeam(team);
+                }}
+                className="appearance-none pl-3 pr-8 py-2.5 bg-gray-50 dark:bg-gray-800/50 border border-gray-200 dark:border-gray-700 rounded-xl text-sm font-medium focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500 cursor-pointer shadow-sm text-gray-700 dark:text-gray-300 min-w-[150px]"
+              >
+                {teams.map(team => (
+                  <option key={team.id} value={team.id}>{team.name}</option>
+                ))}
+              </select>
+              <div className="absolute right-3 top-1/2 -translate-y-1/2 pointer-events-none text-gray-400">
+                <ChevronDown size={14} />
+              </div>
             </div>
 
             <div className="relative">
