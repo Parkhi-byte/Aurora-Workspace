@@ -11,7 +11,6 @@ const authUser = asyncHandler(async (req, res) => {
     const user = await User.findOne({ email });
 
     if (user && (await user.matchPassword(password))) {
-        console.log(`Login attempt for ${email}. Stored role: ${user.role}, Requested role: ${role}`);
         let isValidRole = false;
 
         if (user.role === role) {
@@ -22,7 +21,6 @@ const authUser = asyncHandler(async (req, res) => {
         }
 
         if (role && !isValidRole) {
-            console.log('Role mismatch');
             res.status(401);
             throw new Error('Invalid role selected.');
         }

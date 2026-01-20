@@ -89,7 +89,10 @@ export const useKanban = () => {
             // For now, STRICT filtering by team.
             // Check if task.team matches selectedTeam.id
             const taskTeamId = typeof task.team === 'object' ? task.team._id : task.team; // Populate check
-            const matchesTeam = taskTeamId === selectedTeam.id;
+
+            // selectedTeam.id is usually a string from database _id conversion
+            // Ensure comparison is safe (string vs string)
+            const matchesTeam = String(taskTeamId) === String(selectedTeam.id);
 
             const matchesSearch = task.title.toLowerCase().includes(searchQuery.toLowerCase()) ||
                 task.description.toLowerCase().includes(searchQuery.toLowerCase());

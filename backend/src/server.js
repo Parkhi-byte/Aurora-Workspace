@@ -10,7 +10,6 @@ import taskRoutes from './routes/taskRoutes.js';
 import teamRoutes from './routes/teamRoutes.js';
 import documentRoutes from './routes/documentRoutes.js';
 import passwordRoutes from './routes/passwordRoutes.js';
-import masterRoutes from './routes/masterRoutes.js';
 
 import fs from 'fs';
 
@@ -68,7 +67,6 @@ app.use('/api/tasks', taskRoutes);
 app.use('/api/team', teamRoutes);
 app.use('/api/documents', documentRoutes);
 app.use('/api/passwords', passwordRoutes);
-app.use('/api/master', masterRoutes);
 
 const uploadsPath = path.join(__dirname, '../uploads');
 app.use('/uploads', express.static(uploadsPath));

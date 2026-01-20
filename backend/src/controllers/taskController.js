@@ -33,9 +33,6 @@ const getTasks = asyncHandler(async (req, res) => {
 // @desc    Set task (Admin/Head only)
 // @route   POST /api/tasks
 // @access  Private
-// @desc    Set task (Admin/Head only)
-// @route   POST /api/tasks
-// @access  Private
 const setTask = asyncHandler(async (req, res) => {
     if (!req.body.title) {
         res.status(400);

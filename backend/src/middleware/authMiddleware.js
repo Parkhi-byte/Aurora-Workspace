@@ -50,13 +50,4 @@ const admin = (req, res, next) => {
     }
 };
 
-const master = (req, res, next) => {
-    if (req.user && req.user.role === 'master') {
-        next();
-    } else {
-        res.status(401);
-        throw new Error('Not authorized as a master');
-    }
-};
-
-export { protect, admin, master };
+export { protect, admin };
