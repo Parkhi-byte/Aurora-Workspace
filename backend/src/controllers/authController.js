@@ -91,4 +91,22 @@ const getUserProfile = asyncHandler(async (req, res) => {
     }
 });
 
-export { authUser, registerUser, getUserProfile };
+// @desc    Get all users (searchable)
+// @route   GET /api/auth/users?search=...
+// @access  Private
+const getAllUsers = asyncHandler(async (req, res) => {
+    const keyword = req.query.search
+        ? {
+            $or: [
+                { name: { $regex: req.query.search, $options: 'i' } },
+                { email: { $regex: req.query.search, $options: 'i' } },
+            ],
+        }
+        : {};
+
+    // Find users except current user
+    const users = await User.find(keyword).find({ _id: { $ne: req.user._id } }).select('-password');
+    res.send(users);
+});
+
+export { authUser, registerUser, getUserProfile, getAllUsers };

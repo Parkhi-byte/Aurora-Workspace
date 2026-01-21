@@ -36,7 +36,7 @@ const DocumentTable = ({ loading, filteredDocs, handleDelete, handleShare, getFi
                                                     <FileIcon size={20} />
                                                 </div>
                                                 <div className="ml-4">
-                                                    <div className="text-sm font-medium text-gray-900 dark:text-white">{doc.name}</div>
+                                                    <div className="text-sm font-medium text-gray-900 dark:text-white truncate max-w-[200px]" title={doc.name}>{doc.name}</div>
                                                     <div className="text-xs text-gray-500">{doc.type.toUpperCase()} File</div>
                                                 </div>
                                             </div>
@@ -59,12 +59,15 @@ const DocumentTable = ({ loading, filteredDocs, handleDelete, handleShare, getFi
                                         </td>
                                         <td className="px-6 py-4 whitespace-nowrap text-right text-sm font-medium">
                                             <div className="flex items-center justify-end space-x-2">
-                                                <button
-                                                    onClick={() => window.open(doc.url.startsWith('/') ? doc.url : `/${doc.url}`, '_blank')}
+                                                <a
+                                                    href={doc.url.startsWith('/') ? doc.url : `/${doc.url}`}
+                                                    download
+                                                    target="_blank"
+                                                    rel="noopener noreferrer"
                                                     className="p-2 text-gray-400 hover:text-gray-600 dark:hover:text-gray-300 rounded-lg hover:bg-gray-100 dark:hover:bg-gray-700 transition-colors"
                                                 >
                                                     <Download size={16} />
-                                                </button>
+                                                </a>
                                                 <button
                                                     onClick={() => handleShare(doc)}
                                                     className="p-2 text-gray-400 hover:text-gray-600 dark:hover:text-gray-300 rounded-lg hover:bg-gray-100 dark:hover:bg-gray-700 transition-colors"

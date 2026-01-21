@@ -1,4 +1,6 @@
 
+import Message from '../models/Message.js';
+
 export const setupSocket = (io) => {
     io.on('connection', (socket) => {
         socket.emit("me", socket.id);
@@ -20,6 +22,27 @@ export const setupSocket = (io) => {
 
         socket.on("answerCall", (data) => {
             io.to(data.to).emit("callAccepted", data.signal);
+        });
+
+        // Chat functionality
+        socket.on("typing", (room) => socket.in(room).emit("typing", room));
+        socket.on("stopTyping", (room) => socket.in(room).emit("stopTyping", room));
+
+        socket.on("sendMessage", async ({ room, text, senderId, type }) => {
+            try {
+                const newMessage = await Message.create({
+                    room,
+                    text,
+                    sender: senderId,
+                    type: type || 'text'
+                });
+
+                const populatedMessage = await Message.findById(newMessage._id).populate('sender', 'name email');
+
+                io.to(room).emit("receiveMessage", populatedMessage);
+            } catch (error) {
+                console.error("Socket Send Message Error:", error);
+            }
         });
     });
 };

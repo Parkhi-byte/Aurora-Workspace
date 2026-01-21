@@ -11,6 +11,7 @@ import teamRoutes from './routes/teamRoutes.js';
 import documentRoutes from './routes/documentRoutes.js';
 import passwordRoutes from './routes/passwordRoutes.js';
 
+import chatRoutes from './routes/chatRoutes.js';
 import fs from 'fs';
 
 dotenv.config();
@@ -67,6 +68,7 @@ app.use('/api/tasks', taskRoutes);
 app.use('/api/team', teamRoutes);
 app.use('/api/documents', documentRoutes);
 app.use('/api/passwords', passwordRoutes);
+app.use('/api/chat', chatRoutes);
 
 const uploadsPath = path.join(__dirname, '../uploads');
 app.use('/uploads', express.static(uploadsPath));

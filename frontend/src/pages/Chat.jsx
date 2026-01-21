@@ -12,7 +12,19 @@ const Chat = () => {
     activeChat,
     setActiveChat,
     chats,
-    handleSend
+    handleSend,
+    chatsData,
+    activeOnlineCount,
+    handleCreateGroup,
+    searchUsers,
+    handleAccessChat,
+    handleFileUpload,
+    isTyping,
+    handleTyping,
+    renameGroup,
+    addToGroup,
+    removeFromGroup,
+    user
   } = useChat();
 
   return (
@@ -22,6 +34,10 @@ const Chat = () => {
         chats={chats}
         activeChat={activeChat}
         setActiveChat={setActiveChat}
+        chatsData={chatsData}
+        onCreateGroup={handleCreateGroup}
+        onSearchUsers={searchUsers}
+        onAccessChat={handleAccessChat}
       />
 
       {/* Main Chat Area */}
@@ -29,8 +45,17 @@ const Chat = () => {
         activeChat={activeChat}
         messages={messages}
         message={message}
-        setMessage={setMessage}
+        setMessage={handleTyping}
         handleSend={handleSend}
+        onlineCount={activeOnlineCount}
+        isTyping={isTyping}
+        onFileUpload={handleFileUpload}
+        renameGroup={renameGroup}
+        addToGroup={addToGroup}
+        removeFromGroup={removeFromGroup}
+        chatsData={chatsData}
+        searchUsers={searchUsers}
+        currentUser={user}
       />
     </div>
   );

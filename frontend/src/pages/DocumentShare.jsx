@@ -140,7 +140,7 @@ const DocumentShare = () => {
 
         <div className="grid grid-cols-1 lg:grid-cols-4 gap-8">
           {/* Main Content */}
-          <div className="lg:col-span-3 space-y-6">
+          <div className="lg:col-span-3 space-y-6 min-w-0">
 
             {/* Folders Grid */}
             {filteredFolders.length > 0 && (
