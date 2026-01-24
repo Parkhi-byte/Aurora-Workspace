@@ -147,7 +147,7 @@ const ChatWindow = ({ activeChat, messages, message, setMessage, handleTyping, h
 
             <div className="flex flex-1 overflow-hidden relative">
                 {/* Messages Area */}
-                <div className="flex-1 overflow-y-auto p-4 sm:p-6 pb-28 space-y-6 bg-gradient-to-b from-gray-50 to-white dark:from-gray-900 dark:to-gray-800 scroll-smooth">
+                <div className="flex-1 overflow-y-auto p-4 sm:p-6 pb-4 space-y-6 bg-gradient-to-b from-gray-50 to-white dark:from-gray-900 dark:to-gray-800 scroll-smooth">
                     {messages.length === 0 && (
                         <div className="flex flex-col items-center justify-center h-full text-gray-400 opacity-60">
                             {isLoadingHistory ? (
@@ -231,6 +231,7 @@ const ChatWindow = ({ activeChat, messages, message, setMessage, handleTyping, h
                             ))}
                         </div>
                     ))}
+                    <div className="h-20" />
                     <div ref={messagesEndRef} />
                 </div>
 
