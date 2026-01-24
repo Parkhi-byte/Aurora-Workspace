@@ -4,13 +4,13 @@ import { UserPlus, Mail, User, Sparkles, AlertCircle, CheckCircle } from 'lucide
 
 const InviteMember = ({ inviteEmail, setInviteEmail, inviteName, setInviteName, handleInvite, loading, error, success }) => {
     return (
-        <div className="bg-white/80 dark:bg-gray-900/80 backdrop-blur-xl border border-white/40 dark:border-gray-700/40 shadow-2xl rounded-[2rem] p-8 sticky top-28 overflow-hidden">
+        <div className="bg-white/60 dark:bg-gray-800/60 backdrop-blur-xl border border-white/50 dark:border-gray-700/50 shadow-2xl rounded-[2rem] p-8 sticky top-28 overflow-hidden">
             {/* Header Shine */}
             <div className="absolute top-0 left-0 w-full h-1 bg-gradient-to-r from-transparent via-indigo-500 to-transparent opacity-50"></div>
 
             <div className="relative z-10">
                 <div className="flex items-center space-x-4 mb-8">
-                    <div className="w-16 h-16 bg-gradient-to-tr from-violet-600 to-indigo-600 rounded-2xl flex items-center justify-center text-white shadow-xl shadow-indigo-500/30 transform -rotate-6 transition-transform hover:rotate-0 duration-500">
+                    <div className="w-16 h-16 bg-gradient-to-tr from-fuchsia-600 to-purple-600 rounded-2xl flex items-center justify-center text-white shadow-xl shadow-fuchsia-500/30 transform -rotate-6 transition-transform hover:rotate-0 duration-500">
                         <UserPlus size={32} />
                     </div>
                     <div>
@@ -65,7 +65,7 @@ const InviteMember = ({ inviteEmail, setInviteEmail, inviteName, setInviteName, 
                     <button
                         type="submit"
                         disabled={loading}
-                        className="w-full py-4 bg-gray-900 dark:bg-white text-white dark:text-gray-900 rounded-xl font-bold shadow-xl shadow-gray-900/10 hover:shadow-2xl hover:scale-[1.02] active:scale-[0.98] transition-all duration-300 flex items-center justify-center space-x-2 disabled:opacity-70 disabled:cursor-not-allowed group relative overflow-hidden"
+                        className="w-full py-4 bg-gradient-to-r from-gray-900 to-gray-800 dark:from-white dark:to-gray-200 text-white dark:text-gray-900 rounded-xl font-bold shadow-xl shadow-gray-900/10 hover:shadow-2xl hover:scale-[1.02] active:scale-[0.98] transition-all duration-300 flex items-center justify-center space-x-2 disabled:opacity-70 disabled:cursor-not-allowed group relative overflow-hidden"
                     >
                         {loading ? (
                             <div className="w-5 h-5 border-2 border-current border-t-transparent rounded-full animate-spin" />

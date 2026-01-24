@@ -1,23 +1,25 @@
-
 import React from 'react';
 import { useTeamManagement } from '../hooks/useTeamManagement/useTeamManagement';
-import { Shield, ChevronDown, Plus, Check } from 'lucide-react';
+import { ChevronDown, Plus, Check, Trash2, Edit2 } from 'lucide-react';
+import { motion, AnimatePresence } from 'framer-motion';
 import TeamStats from '../components/TeamManagement/TeamStats';
 import InviteMember from '../components/TeamManagement/InviteMember';
 import TeamList from '../components/TeamManagement/TeamList';
 
 const TeamManagement = () => {
   const {
-    user,
-    isAdmin, // Kept for reference but using isTeamOwner for permissions
     isTeamOwner,
-    inviteEmail, setInviteEmail,
-    inviteName, setInviteName,
-    searchTerm, setSearchTerm,
-    error, setError,
-    success, setSuccess,
+    inviteEmail,
+    setInviteEmail,
+    inviteName,
+    setInviteName,
+    searchTerm,
+    setSearchTerm,
+    error,
+    success,
     loading,
-    hoveredMember, setHoveredMember,
+    hoveredMember,
+    setHoveredMember,
     teamMembers,
     filteredMembers,
     stats,
@@ -29,173 +31,217 @@ const TeamManagement = () => {
     createTeam,
     updateTeamDetails,
     deleteTeam,
-    activities
+    activities,
+    isAdmin
   } = useTeamManagement();
 
   const [isTeamMenuOpen, setIsTeamMenuOpen] = React.useState(false);
 
-  // If loading, maybe show a spinner, but for now we render through. 
-  // If user is not logged in, auth context handles redirection usually.
-
   return (
-    <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8 animate-fade-in space-y-8 relative z-0">
-
-      {/* Dynamic Background Elements */}
-      <div className="fixed inset-0 pointer-events-none overflow-hidden -z-10">
-        <div className="absolute top-10 right-10 w-96 h-96 bg-aurora-500/10 rounded-full blur-[100px] animate-blob"></div>
-        <div className="absolute bottom-10 left-10 w-96 h-96 bg-purple-500/10 rounded-full blur-[100px] animate-blob animation-delay-2000"></div>
+    <div className="min-h-screen bg-gradient-to-br from-gray-50 via-white to-indigo-50/30 dark:from-gray-900 dark:via-gray-900 dark:to-indigo-950/30">
+      {/* Animated Background Elements */}
+      <div className="fixed inset-0 pointer-events-none overflow-hidden">
+        <div className="absolute top-[-10%] right-[-5%] w-[600px] h-[600px] bg-gradient-to-br from-indigo-500/20 to-purple-500/20 rounded-full blur-[120px] animate-blob" />
+        <div className="absolute bottom-[-10%] left-[-5%] w-[700px] h-[700px] bg-gradient-to-br from-fuchsia-500/20 to-pink-500/20 rounded-full blur-[120px] animate-blob animation-delay-2000" />
+        <div className="absolute top-[40%] left-[30%] w-[500px] h-[500px] bg-gradient-to-br from-cyan-500/15 to-blue-500/15 rounded-full blur-[100px] animate-blob animation-delay-4000" />
       </div>
 
-      {/* Header Section */}
-      <div className="flex flex-col md:flex-row md:items-center justify-between gap-6 pb-6 border-b border-gray-200/50 dark:border-gray-700/50">
-        <div>
-          <div className="relative">
-            <div className="flex items-center space-x-3">
-              <button
-                onClick={() => setIsTeamMenuOpen(!isTeamMenuOpen)}
-                className="flex items-center space-x-3 text-4xl font-extrabold text-transparent bg-clip-text bg-gradient-to-r from-gray-900 via-purple-600 to-violet-600 dark:from-white dark:via-purple-400 dark:to-violet-400 tracking-tight hover:opacity-80 transition-opacity"
-              >
-                <span>{currentTeam?.name || 'My Team'}</span>
-                <ChevronDown size={32} className="text-gray-400" />
-              </button>
-
-              {/* Edit Team Name Button */}
-              {isTeamOwner && (
-                <button
-                  onClick={() => {
-                    const newName = prompt("Enter new team name:", currentTeam?.name);
-                    if (newName && newName.trim()) {
-                      // Rename action
-                      // We need to import/use updateTeamDetails from the hook if available
-                      // It IS available in the hook return
-                      // Assuming destructured below:
-                      updateTeamDetails(newName, currentTeam?.description);
-                    }
-                  }}
-                  className="p-2 ml-2 text-gray-400 hover:text-indigo-500 transition-colors"
-                  title="Rename Team"
+      <div className="relative max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
+        {/* Header Section */}
+        <motion.div
+          initial={{ opacity: 0, y: -20 }}
+          animate={{ opacity: 1, y: 0 }}
+          className="mb-8"
+        >
+          <div className="flex flex-col lg:flex-row lg:items-center justify-between gap-6">
+            {/* Team Name & Selector */}
+            <div className="flex-1">
+              <div className="relative inline-block">
+                <motion.button
+                  whileHover={{ scale: 1.01 }}
+                  whileTap={{ scale: 0.99 }}
+                  onClick={() => setIsTeamMenuOpen(!isTeamMenuOpen)}
+                  className="group flex items-center gap-3 mb-2"
                 >
-                  <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"></path><path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"></path></svg>
-                </button>
-              )}
-            </div>
-
-            {/* Team Dropdown */}
-            {isTeamMenuOpen && (
-              <div className="absolute top-full left-0 mt-2 w-72 bg-white dark:bg-gray-800 rounded-2xl shadow-xl border border-gray-200 dark:border-gray-700 p-2 z-50 animate-fade-in">
-                <div className="mb-2 px-3 py-2 text-xs font-bold text-gray-400 uppercase tracking-widest">Switch Team</div>
-                {teams.map(team => (
-                  <button
-                    key={team.id}
-                    onClick={() => {
-                      setCurrentTeamId(team.id);
-                      setIsTeamMenuOpen(false);
-                    }}
-                    className={`w-full flex items-center justify-between px-3 py-2 rounded-xl text-left text-sm font-medium transition-colors ${currentTeam?.id === team.id
-                      ? 'bg-aurora-50 dark:bg-aurora-900/30 text-aurora-600 dark:text-aurora-400'
-                      : 'text-gray-700 dark:text-gray-200 hover:bg-gray-50 dark:hover:bg-gray-700'
-                      }`}
-                  >
-                    <span>{team.name}</span>
-                    {currentTeam?.id === team.id && <Check size={16} />}
-                  </button>
-                ))}
-
-                {/* Create New Team Button */}
-                {(isAdmin || isTeamOwner) && (
-                  <div className="pt-2 mt-2 border-t border-gray-100 dark:border-gray-700">
-                    <button
-                      onClick={() => {
-                        const teamName = prompt("Enter new team name:");
-                        if (teamName) createTeam(teamName);
-                        setIsTeamMenuOpen(false);
-                      }}
-                      className="w-full flex items-center space-x-2 px-3 py-2 rounded-xl text-left text-sm font-medium text-indigo-600 dark:text-indigo-400 hover:bg-indigo-50 dark:hover:bg-indigo-900/20 transition-colors"
-                    >
-                      <Plus size={16} />
-                      <span>Create New Team</span>
-                    </button>
-
-                    {isTeamOwner && teams.length > 1 && (
-                      <button
-                        onClick={() => {
-                          deleteTeam(currentTeam.id);
-                          setIsTeamMenuOpen(false);
-                        }}
-                        className="w-full flex items-center space-x-2 px-3 py-2 mt-1 rounded-xl text-left text-sm font-medium text-red-600 dark:text-red-400 hover:bg-red-50 dark:hover:bg-red-900/20 transition-colors"
-                      >
-                        <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><polyline points="3 6 5 6 21 6"></polyline><path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"></path></svg>
-                        <span>Delete Team</span>
-                      </button>
-                    )}
+                  <h1 className="text-4xl md:text-5xl font-black bg-gradient-to-r from-gray-900 via-indigo-900 to-purple-900 dark:from-white dark:via-indigo-200 dark:to-purple-200 bg-clip-text text-transparent">
+                    {currentTeam?.name || 'My Team'}
+                  </h1>
+                  <div className="mt-2 p-2 rounded-full bg-white/80 dark:bg-gray-800/80 backdrop-blur-sm shadow-lg group-hover:shadow-xl transition-all">
+                    <ChevronDown size={20} className="text-gray-600 dark:text-gray-400" />
                   </div>
+                </motion.button>
+
+                {/* Team Dropdown */}
+                <AnimatePresence>
+                  {isTeamMenuOpen && (
+                    <motion.div
+                      initial={{ opacity: 0, y: 10, scale: 0.95 }}
+                      animate={{ opacity: 1, y: 0, scale: 1 }}
+                      exit={{ opacity: 0, y: 10, scale: 0.95 }}
+                      className="absolute top-full left-0 mt-3 w-80 bg-white/95 dark:bg-gray-800/95 backdrop-blur-2xl rounded-2xl shadow-2xl border border-gray-200/50 dark:border-gray-700/50 overflow-hidden z-50"
+                    >
+                      <div className="p-4 border-b border-gray-200 dark:border-gray-700">
+                        <h4 className="text-xs font-bold text-gray-500 dark:text-gray-400 uppercase tracking-wider">Your Teams</h4>
+                      </div>
+
+                      <div className="max-h-64 overflow-y-auto p-2">
+                        {teams.map(team => (
+                          <button
+                            key={team.id}
+                            onClick={() => {
+                              setCurrentTeamId(team.id);
+                              setIsTeamMenuOpen(false);
+                            }}
+                            className={`w-full flex items-center justify-between px-4 py-3 rounded-xl text-left transition-all mb-1 ${currentTeam?.id === team.id
+                                ? 'bg-indigo-50 dark:bg-indigo-900/30 text-indigo-700 dark:text-indigo-300'
+                                : 'text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-700/50'
+                              }`}
+                          >
+                            <span className="font-semibold truncate">{team.name}</span>
+                            {currentTeam?.id === team.id && <Check size={18} className="text-indigo-600 dark:text-indigo-400" />}
+                          </button>
+                        ))}
+                      </div>
+
+                      {(isAdmin || isTeamOwner) && (
+                        <div className="p-2 border-t border-gray-200 dark:border-gray-700 bg-gray-50/50 dark:bg-gray-900/50">
+                          <button
+                            onClick={() => {
+                              const teamName = prompt("Enter new team name:");
+                              if (teamName) createTeam(teamName);
+                              setIsTeamMenuOpen(false);
+                            }}
+                            className="w-full flex items-center gap-3 px-4 py-3 rounded-xl text-indigo-600 dark:text-indigo-400 hover:bg-indigo-50 dark:hover:bg-indigo-900/30 transition-all font-semibold"
+                          >
+                            <Plus size={18} />
+                            <span>Create New Team</span>
+                          </button>
+                        </div>
+                      )}
+                    </motion.div>
+                  )}
+                </AnimatePresence>
+              </div>
+
+              <div className="flex items-center gap-3 mt-2">
+                <p className="text-gray-600 dark:text-gray-400 max-w-2xl">
+                  {currentTeam?.description || 'Manage your team members, track performance, and collaborate efficiently.'}
+                </p>
+                {isTeamOwner && (
+                  <button
+                    onClick={() => {
+                      const newName = prompt("Rename team:", currentTeam?.name);
+                      if (newName) updateTeamDetails(newName, currentTeam?.description);
+                    }}
+                    className="p-2 text-gray-400 hover:text-indigo-600 dark:hover:text-indigo-400 transition-colors"
+                    title="Edit team name"
+                  >
+                    <Edit2 size={16} />
+                  </button>
                 )}
               </div>
-            )}
-          </div>
-          <div className="flex items-center gap-2 mt-2">
-            {!isTeamOwner && (
-              <span className="px-2 py-0.5 rounded text-xs font-bold bg-gray-100 dark:bg-gray-800 text-gray-500 uppercase">View Only</span>
-            )}
-            <p className="text-gray-500 dark:text-gray-400 text-lg font-light">
-              {currentTeam?.description || 'Manage your team members and performance.'}
-            </p>
-          </div>
-        </div>
-        <div className="flex items-center space-x-3 bg-white/50 dark:bg-gray-800/50 backdrop-blur-md px-5 py-3 rounded-2xl border border-white/20 shadow-sm">
-          <div className="flex -space-x-4 hover:space-x-1 transition-all">
-            {teamMembers.slice(0, 5).map((m, i) => (
-              <div key={i} className="w-10 h-10 rounded-full border-2 border-white dark:border-gray-800 flex items-center justify-center text-xs font-bold text-white bg-gradient-to-br from-indigo-500 to-purple-500 shadow-md transition-all hover:scale-110 hover:z-10">
-                {m.name?.[0]?.toUpperCase() || m.email[0].toUpperCase()}
+            </div>
+
+            {/* Team Info Card */}
+            <motion.div
+              initial={{ opacity: 0, x: 20 }}
+              animate={{ opacity: 1, x: 0 }}
+              className="bg-white/80 dark:bg-gray-800/80 backdrop-blur-xl rounded-2xl p-5 shadow-lg border border-gray-200/50 dark:border-gray-700/50"
+            >
+              <div className="flex items-center gap-4">
+                <div className="flex -space-x-2">
+                  {teamMembers.slice(0, 4).map((m, i) => (
+                    <div
+                      key={i}
+                      className="w-10 h-10 rounded-full border-2 border-white dark:border-gray-800 flex items-center justify-center text-xs font-bold text-white bg-gradient-to-br from-indigo-500 to-purple-500 shadow-md"
+                      title={m.name || m.email}
+                    >
+                      {m.name?.[0]?.toUpperCase() || m.email[0].toUpperCase()}
+                    </div>
+                  ))}
+                  {teamMembers.length > 4 && (
+                    <div className="w-10 h-10 rounded-full border-2 border-white dark:border-gray-800 flex items-center justify-center text-xs font-bold bg-gray-200 dark:bg-gray-700 text-gray-600 dark:text-gray-300">
+                      +{teamMembers.length - 4}
+                    </div>
+                  )}
+                </div>
+                <div className="border-l border-gray-300 dark:border-gray-600 pl-4">
+                  <p className="text-2xl font-black text-gray-900 dark:text-white">{teamMembers.length}</p>
+                  <p className="text-xs text-gray-500 dark:text-gray-400 font-semibold uppercase tracking-wide">Members</p>
+                </div>
+                {isTeamOwner && (
+                  <button
+                    onClick={() => {
+                      if (window.confirm("Delete this team? This action cannot be undone.")) deleteTeam(currentTeam.id);
+                    }}
+                    className="ml-2 p-2 rounded-lg text-red-500 hover:bg-red-50 dark:hover:bg-red-900/20 transition-colors"
+                    title="Delete team"
+                  >
+                    <Trash2 size={18} />
+                  </button>
+                )}
               </div>
-            ))}
-            {teamMembers.length > 5 && (
-              <div className="w-10 h-10 rounded-full border-2 border-white dark:border-gray-800 flex items-center justify-center text-xs font-bold bg-gray-100 dark:bg-gray-700 text-gray-600 dark:text-gray-300 shadow-md z-10">
-                +{teamMembers.length - 5}
-              </div>
+            </motion.div>
+          </div>
+        </motion.div>
+
+        {/* Stats Section */}
+        <motion.div
+          initial={{ opacity: 0, y: 20 }}
+          animate={{ opacity: 1, y: 0 }}
+          transition={{ delay: 0.1 }}
+        >
+          <TeamStats stats={stats} activities={activities} />
+        </motion.div>
+
+        {/* Main Content */}
+        <motion.div
+          initial={{ opacity: 0, y: 20 }}
+          animate={{ opacity: 1, y: 0 }}
+          transition={{ delay: 0.2 }}
+          className="mt-8 grid grid-cols-1 xl:grid-cols-12 gap-6"
+        >
+          {/* Invite Panel */}
+          <AnimatePresence>
+            {isTeamOwner && (
+              <motion.div
+                initial={{ opacity: 0, x: -20 }}
+                animate={{ opacity: 1, x: 0 }}
+                exit={{ opacity: 0, x: -20 }}
+                className="xl:col-span-4"
+              >
+                <div className="sticky top-6">
+                  <InviteMember
+                    inviteEmail={inviteEmail}
+                    setInviteEmail={setInviteEmail}
+                    inviteName={inviteName}
+                    setInviteName={setInviteName}
+                    handleInvite={handleInvite}
+                    loading={loading}
+                    error={error}
+                    success={success}
+                  />
+                </div>
+              </motion.div>
             )}
-          </div>
-          <div className="pl-2 border-l border-gray-200 dark:border-gray-700 ml-4">
-            <span className="block text-xs font-bold text-gray-400 uppercase tracking-wider">Active</span>
-            <span className="font-bold text-gray-900 dark:text-white">{teamMembers.length} Members</span>
-          </div>
-        </div>
-      </div>
+          </AnimatePresence>
 
-      {/* Dashboard Stats Area */}
-      <TeamStats stats={stats} activities={activities} />
-
-      {/* Main Content Split */}
-      <div className="grid grid-cols-1 xl:grid-cols-3 gap-8">
-
-        {/* Left: Invite Panel - ONLY IF OWNER */}
-        {isTeamOwner && (
-          <div className="xl:col-span-1">
-            <InviteMember
-              inviteEmail={inviteEmail}
-              setInviteEmail={setInviteEmail}
-              inviteName={inviteName}
-              setInviteName={setInviteName}
-              handleInvite={handleInvite}
-              loading={loading}
-              error={error}
-              success={success}
+          {/* Team List */}
+          <motion.div
+            layout
+            className={isTeamOwner ? "xl:col-span-8" : "xl:col-span-12"}
+          >
+            <TeamList
+              filteredMembers={filteredMembers}
+              teamMembers={teamMembers}
+              searchTerm={searchTerm}
+              setSearchTerm={setSearchTerm}
+              hoveredMember={hoveredMember}
+              setHoveredMember={setHoveredMember}
+              handleRemoveMember={isTeamOwner ? handleRemoveMember : undefined}
             />
-          </div>
-        )}
-
-        {/* Right: Member List - Full width if not owner */}
-        <div className={isTeamOwner ? "xl:col-span-2" : "xl:col-span-3"}>
-          <TeamList
-            filteredMembers={filteredMembers}
-            teamMembers={teamMembers}
-            searchTerm={searchTerm}
-            setSearchTerm={setSearchTerm}
-            hoveredMember={hoveredMember}
-            setHoveredMember={setHoveredMember}
-            handleRemoveMember={isTeamOwner ? handleRemoveMember : undefined} // Pass undefined if not owner to disable
-          />
-        </div>
+          </motion.div>
+        </motion.div>
       </div>
     </div>
   );
