@@ -6,6 +6,7 @@ import { ThemeProvider } from './context/ThemeContext';
 import Layout from './components/Layout';
 import ProtectedRoute from './components/ProtectedRoute';
 import PageLoader from './components/PageLoader';
+import ErrorBoundary from './components/ErrorBoundary';
 
 const Login = React.lazy(() => import('./pages/Login'));
 const SignUp = React.lazy(() => import('./pages/SignUp'));
@@ -100,7 +101,9 @@ function AppRoutes() {
           element={
             <ProtectedRoute>
               <Layout>
-                <VideoCall />
+                <ErrorBoundary>
+                  <VideoCall />
+                </ErrorBoundary>
               </Layout>
             </ProtectedRoute>
           }

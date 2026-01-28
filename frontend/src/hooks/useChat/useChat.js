@@ -16,6 +16,7 @@ export const useChat = () => {
         isLoadingHistory,
         fetchedChats,
         setFetchedChats,
+        setIsLoadingHistory,
         onlineUsers,
         startCall
     } = useChatContext();
