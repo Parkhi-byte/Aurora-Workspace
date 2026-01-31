@@ -41,16 +41,16 @@ const ChatWindow = ({ activeChat, messages, message, setMessage, handleTyping, h
         e.target.value = '';
     };
 
-    const startCall = () => {
+    const startCall = (isVideo = true) => {
         // Find the other user in the chat
         if (chatsData[activeChat]?.type === 'group') {
-            toast.info("Group video calls are coming soon!");
+            toast.info("Group calls are coming soon!");
             return;
         }
 
         const otherUser = chatsData[activeChat].users.find(u => u._id !== currentUser._id);
         if (otherUser) {
-            handleStartCall(otherUser._id);
+            handleStartCall(otherUser._id, otherUser.name, isVideo);
         }
     };
 
@@ -127,18 +127,20 @@ const ChatWindow = ({ activeChat, messages, message, setMessage, handleTyping, h
                 </div>
                 <div className="flex items-center space-x-1 text-gray-500 dark:text-gray-400">
                     <button
-                        onClick={() => toast.info('Voice calling coming soon!')}
+                        onClick={() => startCall(false)}
                         className="p-2.5 hover:bg-gray-100 dark:hover:bg-gray-800 rounded-full transition-colors"
                         aria-label="Start voice call"
+                        title="Start voice call"
                     >
-                        <Phone size={18} />
+                        <Phone size={20} />
                     </button>
                     <button
-                        onClick={startCall}
+                        onClick={() => startCall(true)}
                         className="p-2.5 hover:bg-gray-100 dark:hover:bg-gray-800 rounded-full transition-colors"
                         aria-label="Start video call"
+                        title="Start video call"
                     >
-                        <Video size={18} />
+                        <Video size={20} />
                     </button>
                     <button
                         onClick={() => setShowInfo(!showInfo)}

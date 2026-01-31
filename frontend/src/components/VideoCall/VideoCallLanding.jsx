@@ -203,7 +203,7 @@ const VideoCallLanding = ({
                     </div>
                     <div className="bg-white/60 dark:bg-gray-800/60 backdrop-blur-sm p-6 rounded-2xl border border-gray-200/50 dark:border-gray-700/50 text-center hover:bg-white/80 dark:hover:bg-gray-800/80 transition-colors cursor-default">
                         <div className="w-12 h-12 bg-blue-50 dark:bg-blue-900/30 rounded-xl flex items-center justify-center mx-auto mb-4 text-blue-600 dark:text-blue-400 shadow-sm">
-                            <Users size={24} />
+                            <Shield size={24} />
                         </div>
                         <h3 className="font-bold text-gray-900 dark:text-white text-lg mb-1">Secure</h3>
                         <p className="text-sm text-gray-500 dark:text-gray-400">End-to-encrypted</p>

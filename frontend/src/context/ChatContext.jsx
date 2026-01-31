@@ -232,9 +232,9 @@ export const ChatProvider = ({ children }) => {
     const [isCalling, setIsCalling] = useState(false);
     const [stream, setStream] = useState(null);
 
-    const startCall = (userId) => {
+    const startCall = (userId, userName, isVideo = true) => {
         setIsCalling(true);
-        setCall({ isReceivingCall: false, userToCall: userId });
+        setCall({ isReceivingCall: false, userToCall: userId, name: userName, isVideo });
         // The VideoCall component will handle the actual signaling creation when it mounts and sees 'isCalling'
     };
 
@@ -250,13 +250,32 @@ export const ChatProvider = ({ children }) => {
         setTimeout(() => setCallEnded(false), 1000); // Reset after cleanup
     };
 
+    // Ringtone logic
+    const ringtoneRef = useRef(null);
+    useEffect(() => {
+        // Initialize ringtone
+        ringtoneRef.current = new Audio('https://assets.mixkit.co/active_storage/sfx/1359/1359-preview.mp3');
+        ringtoneRef.current.loop = true;
+    }, []);
+
+    useEffect(() => {
+        if (call.isReceivingCall && !callAccepted) {
+            ringtoneRef.current?.play().catch(e => console.log("Audio play failed", e));
+        } else {
+            if (ringtoneRef.current) {
+                ringtoneRef.current.pause();
+                ringtoneRef.current.currentTime = 0;
+            }
+        }
+    }, [call.isReceivingCall, callAccepted]);
+
     // Socket listeners for Calls
     useEffect(() => {
         if (!socketRef.current) return;
 
-        socketRef.current.on('callUser', ({ from, name, signal }) => {
-            console.log("Receiving call from", name);
-            setCall({ isReceivingCall: true, from, name, signal });
+        socketRef.current.on('callUser', ({ from, name, signal, isVideo }) => {
+            console.log("Receiving call from", name, "Video:", isVideo);
+            setCall({ isReceivingCall: true, from, name, signal, isVideo });
         });
 
         // We also need to listen for callEnded from remote here? 
@@ -266,7 +285,7 @@ export const ChatProvider = ({ children }) => {
         return () => {
             socketRef.current?.off('callUser');
         };
-    }, [socketRef.current]);
+    }, [socketConnected]);
 
     const value = {
         activeChat,

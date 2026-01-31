@@ -129,7 +129,7 @@ function AppRoutes() {
           }
         />
         <Route
-          path="/notifications"
+          path="/notifications/:filter?"
           element={
             <ProtectedRoute>
               <Layout>

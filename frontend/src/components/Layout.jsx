@@ -8,7 +8,7 @@ import VideoCall from './VideoCall/VideoCall';
 
 const Layout = ({ children }) => {
   const { user } = useAuth();
-  const { call, isCalling, callEnded, endCall } = useChatContext();
+  const { call, isCalling, callEnded, endCall, answerCall } = useChatContext();
   const location = useLocation();
 
   // Routes where we want a full-screen app experience without a footer
@@ -39,6 +39,8 @@ const Layout = ({ children }) => {
           callerId={call?.from}
           userToCall={call?.userToCall}
           onEndCall={endCall}
+          onAnswer={answerCall}
+          isVideoCall={call?.isVideo !== false} // Default to true if undefined
         />
       )}
 

@@ -192,9 +192,9 @@ export const setupSocket = (io) => {
         });
 
         // WebRTC Signaling (legacy 1-to-1 calls)
-        socket.on("callUser", ({ userToCall, signalData, from, name }) => {
-            console.log(`Call initiated from ${from} to ${userToCall}`);
-            io.to(userToCall).emit("callUser", { signal: signalData, from, name });
+        socket.on("callUser", ({ userToCall, signalData, from, name, isVideo }) => {
+            console.log(`Call initiated from ${from} to ${userToCall} (Video: ${isVideo})`);
+            io.to(userToCall).emit("callUser", { signal: signalData, from, name, isVideo });
         });
 
         socket.on("answerCall", (data) => {

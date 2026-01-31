@@ -142,7 +142,7 @@ const Header = () => {
                 {/* Notifications */}
                 <Link
                   to="/notifications"
-                  className={`relative p-2.5 rounded-xl transition-colors ${location.pathname === '/notifications'
+                  className={`relative p-2.5 rounded-xl transition-colors ${location.pathname.startsWith('/notifications')
                     ? 'bg-indigo-50 dark:bg-indigo-900/20 text-indigo-600 dark:text-indigo-400'
                     : 'hover:bg-gray-100 dark:hover:bg-gray-800 text-gray-500 dark:text-gray-400 hover:text-indigo-600 dark:hover:text-indigo-400'
                     }`}

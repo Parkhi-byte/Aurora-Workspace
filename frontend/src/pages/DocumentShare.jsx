@@ -1,6 +1,7 @@
 import React from 'react';
 import { useDocumentShare } from '../hooks/useDocumentShare/useDocumentShare';
 import DocumentTable from '../components/DocumentShare/DocumentTable';
+import CreateFolderModal from '../components/DocumentShare/CreateFolderModal';
 import { Upload, Search, Folder, Clock, Plus, Trash2 } from 'lucide-react';
 
 const DocumentShare = () => {
@@ -28,19 +29,10 @@ const DocumentShare = () => {
   } = useDocumentShare();
 
   const [isCreateFolderOpen, setIsCreateFolderOpen] = React.useState(false);
-  const [newFolderName, setNewFolderName] = React.useState('');
 
   const onFileSelect = (e) => {
     if (e.target.files && e.target.files[0]) {
       uploadFile(e.target.files[0]);
-    }
-  };
-
-  const handleCreateFolder = () => {
-    if (newFolderName.trim()) {
-      createFolder(newFolderName);
-      setNewFolderName('');
-      setIsCreateFolderOpen(false);
     }
   };
 
@@ -107,20 +99,12 @@ const DocumentShare = () => {
           </div>
         </div>
 
-        {/* Create Folder Modal (Simple Inline for now) */}
-        {isCreateFolderOpen && (
-          <div className="mb-6 p-4 bg-white dark:bg-gray-800 rounded-xl border border-gray-200 dark:border-gray-700 flex gap-2 max-w-md">
-            <input
-              type="text"
-              placeholder="Folder Name"
-              value={newFolderName}
-              onChange={(e) => setNewFolderName(e.target.value)}
-              className="flex-1 px-3 py-2 border rounded-lg bg-gray-50 dark:bg-gray-900 border-gray-300 dark:border-gray-600 text-sm"
-            />
-            <button onClick={handleCreateFolder} className="px-4 py-2 bg-blue-600 text-white rounded-lg text-sm">Create</button>
-            <button onClick={() => setIsCreateFolderOpen(false)} className="px-4 py-2 bg-gray-200 dark:bg-gray-700 text-gray-700 dark:text-gray-300 rounded-lg text-sm">Cancel</button>
-          </div>
-        )}
+        {/* Create Folder Modal */}
+        <CreateFolderModal
+          isOpen={isCreateFolderOpen}
+          onClose={() => setIsCreateFolderOpen(false)}
+          onCreate={createFolder}
+        />
 
         {/* Breadcrumbs */}
         <div className="flex items-center mb-6 text-sm text-gray-600 dark:text-gray-400">

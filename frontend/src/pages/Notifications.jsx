@@ -1,5 +1,6 @@
 
-import React from 'react';
+import React, { useEffect } from 'react';
+import { useParams, useNavigate } from 'react-router-dom';
 import { useNotifications } from '../hooks/useNotifications/useNotifications';
 import NotificationFilters from '../components/Notifications/NotificationFilters';
 import NotificationItem from '../components/Notifications/NotificationItem';
@@ -7,6 +8,9 @@ import { Bell, Filter, CheckCircle } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
 
 const Notifications = () => {
+  const { filter: paramFilter } = useParams();
+  const navigate = useNavigate();
+
   const {
     filter,
     setFilter,
@@ -16,6 +20,18 @@ const Notifications = () => {
     filteredNotifications,
     unreadCount
   } = useNotifications();
+
+  useEffect(() => {
+    if (paramFilter && ['all', 'unread'].includes(paramFilter)) {
+      setFilter(paramFilter);
+    } else {
+      setFilter('all');
+    }
+  }, [paramFilter, setFilter]);
+
+  const handleFilterChange = (newFilter) => {
+    navigate(newFilter === 'all' ? '/notifications' : `/notifications/${newFilter}`);
+  };
 
   return (
     <div className="min-h-screen bg-gradient-to-br from-gray-50 via-white to-indigo-50/30 dark:from-gray-900 dark:via-gray-900 dark:to-indigo-950/30 py-12 px-4 sm:px-6 lg:px-8 relative overflow-hidden">
@@ -60,7 +76,7 @@ const Notifications = () => {
           animate={{ opacity: 1, y: 0 }}
           transition={{ delay: 0.1, duration: 0.4 }}
         >
-          <NotificationFilters filter={filter} setFilter={setFilter} unreadCount={unreadCount} />
+          <NotificationFilters filter={filter} setFilter={handleFilterChange} unreadCount={unreadCount} />
         </motion.div>
 
         {/* Notifications List */}
