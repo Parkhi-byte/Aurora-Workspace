@@ -29,8 +29,8 @@ const TaskCard = React.memo(({ task, index, onEdit, onDelete }) => {
                     {...provided.draggableProps}
                     {...provided.dragHandleProps}
                     className={`group bg-white dark:bg-gray-800 p-4 rounded-xl shadow-md border border-gray-200 dark:border-gray-700 transition-all relative overflow-hidden ${snapshot.isDragging
-                            ? 'shadow-xl scale-105 rotate-2 z-50 ring-2 ring-blue-400 cursor-grabbing'
-                            : 'hover:border-blue-400 dark:hover:border-blue-500 hover:-translate-y-1 hover:shadow-lg cursor-grab ' + style.glow
+                        ? 'shadow-xl scale-105 rotate-2 z-50 ring-2 ring-blue-400 cursor-grabbing'
+                        : 'hover:border-blue-400 dark:hover:border-blue-500 hover:-translate-y-1 hover:shadow-lg cursor-grab ' + style.glow
                         }`}
                     style={provided.draggableProps.style}
                 >
@@ -83,8 +83,8 @@ const TaskCard = React.memo(({ task, index, onEdit, onDelete }) => {
                         </div>
                         {task.dueDate && (
                             <div className={`flex items-center gap-1.5 px-2 py-1 rounded-lg text-[10px] font-bold ${isOverdue
-                                    ? 'bg-red-100 dark:bg-red-900/40 text-red-700 dark:text-red-300 border border-red-300 dark:border-red-700'
-                                    : 'bg-blue-100 dark:bg-blue-900/30 text-blue-700 dark:text-blue-300 border border-blue-200 dark:border-blue-700'
+                                ? 'bg-red-100 dark:bg-red-900/40 text-red-700 dark:text-red-300 border border-red-300 dark:border-red-700'
+                                : 'bg-blue-100 dark:bg-blue-900/30 text-blue-700 dark:text-blue-300 border border-blue-200 dark:border-blue-700'
                                 }`}>
                                 <Clock size={11} />
                                 <span>{new Date(task.dueDate).toLocaleDateString(undefined, { month: 'short', day: 'numeric' })}</span>
@@ -92,21 +92,54 @@ const TaskCard = React.memo(({ task, index, onEdit, onDelete }) => {
                         )}
                     </div>
 
-                    {/* Footer with Created Date and Assignee */}
-                    <div className="pt-3 border-t border-gray-200 dark:border-gray-700 flex justify-between items-center">
-                        <div className="flex items-center gap-1.5 text-[10px] text-gray-500 dark:text-gray-400 font-medium">
-                            <Calendar size={10} />
-                            <span>
-                                {new Date(task.createdAt).toLocaleDateString(undefined, { month: 'short', day: 'numeric' })}
-                            </span>
-                        </div>
-                        {task.assignedTo && (
-                            <div className="flex items-center gap-2 bg-indigo-100 dark:bg-indigo-900/40 pr-2 pl-1 py-1 rounded-full border border-indigo-200 dark:border-indigo-700">
-                                <div className="w-5 h-5 rounded-full bg-indigo-500 flex items-center justify-center text-[9px] text-white font-bold">
-                                    {task.assignedTo.name?.[0].toUpperCase()}
+                    {/* Footer with Assignee and Audit Info */}
+                    <div className="pt-3 border-t border-gray-200 dark:border-gray-700 space-y-2">
+                        {/* Assignee Info */}
+                        <div className="flex justify-between items-center">
+                            <div className="flex items-center gap-1.5 text-[10px] text-gray-500 dark:text-gray-400 font-medium">
+                                <Calendar size={10} />
+                                <span>
+                                    {new Date(task.createdAt).toLocaleDateString(undefined, { month: 'short', day: 'numeric' })}
+                                </span>
+                            </div>
+                            {task.assignedTo && (
+                                <div className="flex items-center gap-2 bg-indigo-100 dark:bg-indigo-900/40 pr-2 pl-1 py-1 rounded-full border border-indigo-200 dark:border-indigo-700">
+                                    <div className="w-5 h-5 rounded-full bg-indigo-500 flex items-center justify-center text-[9px] text-white font-bold">
+                                        {task.assignedTo.name?.[0].toUpperCase()}
+                                    </div>
+                                    <span className="text-[10px] font-bold text-indigo-700 dark:text-indigo-300 truncate max-w-[70px]">
+                                        {task.assignedTo.name.split(' ')[0]}
+                                    </span>
                                 </div>
-                                <span className="text-[10px] font-bold text-indigo-700 dark:text-indigo-300 truncate max-w-[70px]">
-                                    {task.assignedTo.name.split(' ')[0]}
+                            )}
+                        </div>
+
+                        {/* Completion Info - Show when task is Done */}
+                        {task.status === 'Done' && task.completedBy && (
+                            <div className="flex items-center gap-1.5 px-2 py-1 rounded-lg bg-green-100 dark:bg-green-900/30 border border-green-300 dark:border-green-700">
+                                <div className="flex items-center gap-1.5 flex-1">
+                                    <div className="w-4 h-4 rounded-full bg-green-500 flex items-center justify-center text-[8px] text-white font-bold">
+                                        ✓
+                                    </div>
+                                    <div className="flex flex-col flex-1">
+                                        <span className="text-[9px] font-bold text-green-700 dark:text-green-300">
+                                            Completed by {task.completedBy.name}
+                                        </span>
+                                        {task.completedAt && (
+                                            <span className="text-[8px] text-green-600 dark:text-green-400">
+                                                {new Date(task.completedAt).toLocaleDateString(undefined, { month: 'short', day: 'numeric', hour: '2-digit', minute: '2-digit' })}
+                                            </span>
+                                        )}
+                                    </div>
+                                </div>
+                            </div>
+                        )}
+
+                        {/* Last Modified Info - Show if different from assignee */}
+                        {task.lastModifiedBy && task.lastModifiedBy._id !== task.assignedTo?._id && (
+                            <div className="flex items-center gap-1.5 px-2 py-1 rounded-lg bg-amber-50 dark:bg-amber-900/20 border border-amber-200 dark:border-amber-700">
+                                <span className="text-[9px] font-medium text-amber-700 dark:text-amber-300">
+                                    Last updated by: <span className="font-bold">{task.lastModifiedBy.name}</span>
                                 </span>
                             </div>
                         )}

@@ -1,6 +1,7 @@
 import asyncHandler from 'express-async-handler';
 import Task from '../models/Task.js';
-import Team from '../models/Team.js'; // Added import
+import Team from '../models/Team.js';
+import Activity from '../models/Activity.js';
 
 // @desc    Get tasks (Visible to everyone in the team)
 // @route   GET /api/tasks
@@ -25,6 +26,8 @@ const getTasks = asyncHandler(async (req, res) => {
         ]
     })
         .populate('assignedTo', 'name email')
+        .populate('completedBy', 'name email')
+        .populate('lastModifiedBy', 'name email')
         .sort({ createdAt: -1 });
 
     res.status(200).json(tasks);
@@ -70,8 +73,11 @@ const setTask = asyncHandler(async (req, res) => {
 
     // If assigning to a user, verify they are in this team
     if (req.body.assignedTo) {
+        // Fix: Check if member OR owner (Issues #2)
         const isMember = team.members.includes(req.body.assignedTo);
-        if (!isMember) {
+        const isOwner = team.owner.toString() === req.body.assignedTo;
+
+        if (!isMember && !isOwner) {
             res.status(400);
             throw new Error('Assigned user is not a member of this team');
         }
@@ -87,6 +93,15 @@ const setTask = asyncHandler(async (req, res) => {
         team: team._id,
         assignedTo: req.body.assignedTo || null,
         dueDate: req.body.dueDate || null,
+        lastModifiedBy: req.user.id, // Fix: Issue #3 - Track creator as first modifier
+    });
+
+    // Fix: Issue #1 - Log Activity
+    await Activity.create({
+        team: team._id,
+        teamOwner: team.owner,
+        text: `${req.user.name} created task "${task.title}"`,
+        type: 'task_create'
     });
 
     const populatedTask = await Task.findById(task._id).populate('assignedTo', 'name email');
@@ -104,6 +119,10 @@ const updateTask = asyncHandler(async (req, res) => {
         throw new Error('Task not found');
     }
 
+    // Fetch team for activity logging
+    const team = await Team.findById(task.team);
+    const teamOwner = team ? team.owner : (req.user.role === 'team_head' ? req.user.id : null);
+
     if (!req.user) {
         res.status(401);
         throw new Error('User not found');
@@ -115,9 +134,59 @@ const updateTask = asyncHandler(async (req, res) => {
 
     // 1. Team Head/Admin/Creator: Can update EVERYTHING
     if (isHead || isCreator) {
+        // Add audit tracking
+        req.body.lastModifiedBy = req.user.id;
+
+        // If status is changing to "Done", track completedBy and completedAt
+        if (req.body.status === 'Done' && task.status !== 'Done') {
+            req.body.completedBy = req.user.id;
+            req.body.completedAt = new Date();
+        }
+
+        // If status is changing FROM "Done" to something else, clear completion data
+        if (req.body.status && req.body.status !== 'Done' && task.status === 'Done') {
+            req.body.completedBy = null;
+            req.body.completedAt = null;
+        }
+
+        // Activity Logging Logic
+        if (teamOwner) {
+            // 1. Reassignment
+            if (req.body.assignedTo && task.assignedTo?.toString() !== req.body.assignedTo) {
+                // Need to fetch user names? Or just store IDs for now? 
+                // Activity model usually stores text. Ideally we want names.
+                // For simplicity/speed, we'll genericize for now or just say "reassigned task".
+                // Or fetch the new user's name?
+                await Activity.create({
+                    team: team._id,
+                    teamOwner: teamOwner,
+                    text: `${req.user.name} reassigned task "${task.title}"`,
+                    type: 'task_reassign'
+                });
+            }
+
+            // 2. Status Change
+            if (req.body.status && req.body.status !== task.status) {
+                const activityType = req.body.status === 'Done' ? 'task_complete' : 'task_status_change';
+                const text = req.body.status === 'Done'
+                    ? `${req.user.name} completed task "${task.title}"`
+                    : `${req.user.name} moved task "${task.title}" to ${req.body.status}`;
+
+                await Activity.create({
+                    team: team._id,
+                    teamOwner: teamOwner,
+                    text: text,
+                    type: activityType
+                });
+            }
+        }
+
         const updatedTask = await Task.findByIdAndUpdate(req.params.id, req.body, {
             new: true,
-        }).populate('assignedTo', 'name email');
+        })
+            .populate('assignedTo', 'name email')
+            .populate('completedBy', 'name email')
+            .populate('lastModifiedBy', 'name email');
         return res.status(200).json(updatedTask);
     }
 
@@ -128,22 +197,52 @@ const updateTask = asyncHandler(async (req, res) => {
             throw new Error('You can only update tasks assigned to you');
         }
 
-        // Restrict updates to only 'status'
-        // If they try to change title/desc/priority, ignore those or throw error?
-        // Let's just create an update object with ONLY status.
         const { status } = req.body;
 
-        // If they are trying to send other fields, we could error, 
-        // but for better UX just ignore them and only apply status if present.
         if (!status) {
-            // If they sent a request without status (e.g. edit description), deny it.
             res.status(403);
             throw new Error('Members can only update task status');
         }
 
-        const updatedTask = await Task.findByIdAndUpdate(req.params.id, { status }, {
+        // Prepare update object with audit tracking
+        const updateData = {
+            status,
+            lastModifiedBy: req.user.id
+        };
+
+        // If marking as "Done", track completion
+        if (status === 'Done' && task.status !== 'Done') {
+            updateData.completedBy = req.user.id;
+            updateData.completedAt = new Date();
+        }
+
+        // If moving FROM "Done", clear completion data
+        if (status && status !== 'Done' && task.status === 'Done') {
+            updateData.completedBy = null;
+            updateData.completedAt = null;
+        }
+
+        // Activity Logging
+        if (teamOwner && status !== task.status) {
+            const activityType = status === 'Done' ? 'task_complete' : 'task_status_change';
+            const text = status === 'Done'
+                ? `${req.user.name} completed task "${task.title}"`
+                : `${req.user.name} moved task "${task.title}" to ${status}`;
+
+            await Activity.create({
+                team: team._id,
+                teamOwner: teamOwner,
+                text: text,
+                type: activityType
+            });
+        }
+
+        const updatedTask = await Task.findByIdAndUpdate(req.params.id, updateData, {
             new: true,
-        }).populate('assignedTo', 'name email');
+        })
+            .populate('assignedTo', 'name email')
+            .populate('completedBy', 'name email')
+            .populate('lastModifiedBy', 'name email');
         return res.status(200).json(updatedTask);
     }
 
@@ -174,6 +273,17 @@ const deleteTask = asyncHandler(async (req, res) => {
     if (!isCreator && !isHead) {
         res.status(403);
         throw new Error('Only Team Heads can delete tasks');
+    }
+
+    // Fix: Issue #4 - Audit Deletion
+    const team = await Team.findById(task.team);
+    if (team) {
+        await Activity.create({
+            team: team._id,
+            teamOwner: team.owner,
+            text: `${req.user.name} deleted task "${task.title}"`,
+            type: 'task_delete'
+        });
     }
 
     await task.deleteOne();

@@ -5,10 +5,22 @@ import Team from '../models/Team.js';
 import Activity from '../models/Activity.js';
 
 // Helper to get stats properly
+// Helper to get stats properly
 const getMemberStats = async (memberId) => {
-    const tasksAssigned = await Task.countDocuments({ assignedTo: memberId });
-    const tasksCompleted = await Task.countDocuments({ assignedTo: memberId, status: 'Done' });
-    return { tasksAssigned, tasksCompleted };
+    try {
+        if (!memberId) return { tasksAssigned: 0, tasksCompleted: 0 };
+
+        // Count tasks ASSIGNED to this member
+        const tasksAssigned = await Task.countDocuments({ assignedTo: memberId });
+
+        // Count tasks ACTUALLY COMPLETED by this member (regardless of who it was assigned to)
+        const tasksCompleted = await Task.countDocuments({ completedBy: memberId });
+
+        return { tasksAssigned, tasksCompleted };
+    } catch (error) {
+        console.error(`Error getting stats for member ${memberId}:`, error);
+        return { tasksAssigned: 0, tasksCompleted: 0 };
+    }
 };
 
 // @desc    Get all teams (Owned + Participating)
@@ -58,6 +70,31 @@ const getTeamMembers = asyncHandler(async (req, res) => {
                 };
             })
         );
+
+        // Add team owner/head to the members list with their stats
+        try {
+            const ownerUser = await User.findById(team.owner).select('name email role');
+            if (ownerUser) {
+                const ownerStats = await getMemberStats(team.owner);
+                const ownerData = {
+                    _id: ownerUser._id,
+                    name: ownerUser.name,
+                    email: ownerUser.email,
+                    role: ownerUser.role || 'team_head',
+                    tasksAssigned: ownerStats.tasksAssigned,
+                    tasksCompleted: ownerStats.tasksCompleted,
+                    isOwner: true // Flag to identify owner in frontend
+                };
+
+                // Check if owner is not already in members array (avoid duplicates)
+                const ownerAlreadyIncluded = membersWithStats.some(m => m._id.toString() === team.owner.toString());
+                if (!ownerAlreadyIncluded) {
+                    membersWithStats.unshift(ownerData); // Add at the beginning
+                }
+            }
+        } catch (error) {
+            console.error('Error adding team owner stats:', error);
+        }
 
         resultTeams.push({
             id: team._id.toString(),

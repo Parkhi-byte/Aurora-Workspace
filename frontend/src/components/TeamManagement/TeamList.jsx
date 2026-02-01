@@ -207,6 +207,11 @@ const TeamList = ({ filteredMembers, teamMembers, searchTerm, setSearchTerm, hov
                                         <div>
                                             <h4 className="font-bold text-gray-900 dark:text-white text-base md:text-lg flex items-center gap-2 group-hover:text-indigo-600 dark:group-hover:text-indigo-400 transition-colors">
                                                 {member.name || 'Anonymous User'}
+                                                {member.isOwner && (
+                                                    <span className="text-[10px] font-black px-2 py-0.5 rounded-full bg-gradient-to-r from-amber-400 to-orange-500 text-white border border-amber-200 shadow-sm">
+                                                        OWNER
+                                                    </span>
+                                                )}
                                                 {member.role === 'admin' && (
                                                     <BadgeCheck size={16} className="text-violet-500" fill="currentColor" />
                                                 )}
@@ -240,8 +245,8 @@ const TeamList = ({ filteredMembers, teamMembers, searchTerm, setSearchTerm, hov
                                                             className={`h-full rounded-full ${efficiency > 80 ? 'bg-emerald-500' : efficiency > 50 ? 'bg-indigo-500' : 'bg-orange-500'}`}
                                                         />
                                                     </div>
-                                                    <div className="text-[10px] text-gray-500 dark:text-gray-400 font-medium">
-                                                        {tasksCompleted}/{totalTasks} tasks completed
+                                                    <div className="text-[10px] text-gray-500 dark:text-gray-400 font-medium" title="Tasks actually completed by this member">
+                                                        {tasksCompleted}/{totalTasks} tasks done
                                                     </div>
                                                 </>
                                             );
@@ -268,7 +273,7 @@ const TeamList = ({ filteredMembers, teamMembers, searchTerm, setSearchTerm, hov
                                                     <button className="w-full text-left px-3 py-2 text-xs font-medium text-gray-600 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-gray-700/50 rounded-lg transition-colors flex items-center gap-2">
                                                         <User size={14} /> View Profile
                                                     </button>
-                                                    {handleRemoveMember && member.role !== 'admin' && ( // Simple check to prevent removing main admin visually, logic still in backend
+                                                    {handleRemoveMember && !member.isOwner && member.role !== 'admin' && ( // Prevent removing owner and admin
                                                         <button
                                                             onClick={(e) => {
                                                                 e.stopPropagation();

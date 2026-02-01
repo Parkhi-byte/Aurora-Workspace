@@ -1,7 +1,10 @@
 
-import React, { createContext, useContext, useState, useEffect, useRef } from 'react';
+import React, { createContext, useContext, useState, useEffect, useRef, useCallback } from 'react';
 import { useAuth } from './AuthContext';
 import io from 'socket.io-client';
+
+// Use files from public/sounds to avoid cache issues
+const ringtoneSound = '/sounds/ringtone.mp3';
 
 const ChatContext = createContext();
 
@@ -20,11 +23,12 @@ export const ChatProvider = ({ children }) => {
     const processedMessageIdsRef = useRef(new Set());
     const [onlineUsers, setOnlineUsers] = useState(new Set()); // New state for online users
 
-    const notificationSoundRef = useRef(null);
+    const ringtoneRef = useRef(null);
 
-    // Initialize notification sound
+    // Initialize sounds
     useEffect(() => {
-        notificationSoundRef.current = new Audio('https://assets.mixkit.co/active_storage/sfx/2869/2869-preview.mp3');
+        ringtoneRef.current = new Audio(ringtoneSound);
+        ringtoneRef.current.loop = true;
     }, []);
 
     // Calculate total unread count whenever chatsData changes
@@ -120,6 +124,31 @@ export const ChatProvider = ({ children }) => {
         }
     }, [user]);
 
+    // Unlock audio context on first interaction
+    useEffect(() => {
+        const unlockAudio = () => {
+            const sounds = [ringtoneRef.current];
+            sounds.forEach(sound => {
+                if (sound) {
+                    sound.play().then(() => {
+                        sound.pause();
+                        sound.currentTime = 0;
+                    }).catch(() => { });
+                }
+            });
+            document.removeEventListener('click', unlockAudio);
+            document.removeEventListener('keydown', unlockAudio);
+        };
+
+        document.addEventListener('click', unlockAudio);
+        document.addEventListener('keydown', unlockAudio);
+
+        return () => {
+            document.removeEventListener('click', unlockAudio);
+            document.removeEventListener('keydown', unlockAudio);
+        };
+    }, []);
+
     useEffect(() => {
         if (user) {
             fetchUserChats();
@@ -182,6 +211,7 @@ export const ChatProvider = ({ children }) => {
                 const existingChat = prev[chatId];
 
                 if (existingChat) {
+                    // Try to play sound immediately on reception if possible, otherwise it catches.
                     return {
                         ...prev,
                         [chatId]: {
@@ -220,7 +250,7 @@ export const ChatProvider = ({ children }) => {
             });
 
             if (chatId !== activeChatRef.current) {
-                notificationSoundRef.current?.play().catch(() => { });
+                // Removed notification sound as per user request
             }
         });
 
@@ -254,17 +284,14 @@ export const ChatProvider = ({ children }) => {
         setTimeout(() => setCallEnded(false), 1000); // Reset after cleanup
     };
 
-    // Ringtone logic
-    const ringtoneRef = useRef(null);
-    useEffect(() => {
-        // Initialize ringtone
-        ringtoneRef.current = new Audio('https://assets.mixkit.co/active_storage/sfx/1359/1359-preview.mp3');
-        ringtoneRef.current.loop = true;
-    }, []);
+
 
     useEffect(() => {
         if (call.isReceivingCall && !callAccepted) {
-            ringtoneRef.current?.play().catch(e => console.log("Audio play failed", e));
+            console.log("Attempting to play ringtone");
+            ringtoneRef.current?.play()
+                .then(() => console.log("Ringtone played successfully"))
+                .catch(e => console.error("Ringtone play failed:", e));
         } else {
             if (ringtoneRef.current) {
                 ringtoneRef.current.pause();

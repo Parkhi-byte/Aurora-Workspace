@@ -37,6 +37,17 @@ const taskSchema = mongoose.Schema({
     dueDate: {
         type: Date,
     },
+    completedBy: {
+        type: mongoose.Schema.Types.ObjectId,
+        ref: 'User', // Track who marked this as "Done"
+    },
+    completedAt: {
+        type: Date, // When it was marked as "Done"
+    },
+    lastModifiedBy: {
+        type: mongoose.Schema.Types.ObjectId,
+        ref: 'User', // Track who last updated this task
+    },
 }, {
     timestamps: true,
 });

@@ -34,7 +34,7 @@ const Chat = () => {
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
 
   return (
-    <div className="h-[calc(100vh-4rem)] bg-gray-50 dark:bg-gray-900 flex animate-fade-in relative">
+    <div className="h-[calc(100vh-5rem)] bg-gray-50 dark:bg-gray-900 flex animate-fade-in relative">
       {/* Mobile Menu Button */}
       <button
         onClick={() => setIsMobileMenuOpen(!isMobileMenuOpen)}

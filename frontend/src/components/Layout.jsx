@@ -26,7 +26,7 @@ const Layout = ({ children }) => {
   const shouldHideFooter = hiddenFooterRoutes.some(route => location.pathname.startsWith(route));
 
   return (
-    <div className="min-h-screen bg-gray-50 dark:bg-gray-900 flex flex-col pt-16">
+    <div className="min-h-screen bg-gray-50 dark:bg-gray-900 flex flex-col pt-20">
       <Header />
       <main className="flex-1 flex flex-col">{children}</main>
 
