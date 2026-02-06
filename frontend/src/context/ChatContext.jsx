@@ -27,7 +27,8 @@ export const ChatProvider = ({ children }) => {
 
     // Initialize sounds
     useEffect(() => {
-        ringtoneRef.current = new Audio(ringtoneSound);
+        // Add cache-busting parameter to avoid ERR_CACHE_OPERATION_NOT_SUPPORTED in some environments
+        ringtoneRef.current = new Audio(`${ringtoneSound}?t=${Date.now()}`);
         ringtoneRef.current.loop = true;
     }, []);
 

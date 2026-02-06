@@ -4,7 +4,7 @@ import { Sparkles, Users, Info, CreditCard, MessageCircle, Video, FileText, Kanb
 import { Link, useLocation } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext';
 import { useChatContext } from '../context/ChatContext';
-import VideoCall from './VideoCall/VideoCall';
+const VideoCall = React.lazy(() => import('./VideoCall/VideoCall'));
 
 const Layout = ({ children }) => {
   const { user } = useAuth();
@@ -30,18 +30,20 @@ const Layout = ({ children }) => {
       <Header />
       <main className="flex-1 flex flex-col">{children}</main>
 
-      {/* Global Video Call Overlay */}
+      {/* Global VideoCall Overlay - Lazy Loaded */}
       {(call?.isReceivingCall || isCalling) && !callEnded && (
-        <VideoCall
-          isIncoming={call?.isReceivingCall}
-          callerSignal={call?.signal}
-          callerName={call?.name}
-          callerId={call?.from}
-          userToCall={call?.userToCall}
-          onEndCall={endCall}
-          onAnswer={answerCall}
-          isVideoCall={call?.isVideo !== false} // Default to true if undefined
-        />
+        <React.Suspense fallback={null}>
+          <VideoCall
+            isIncoming={call?.isReceivingCall}
+            callerSignal={call?.signal}
+            callerName={call?.name}
+            callerId={call?.from}
+            userToCall={call?.userToCall}
+            onEndCall={endCall}
+            onAnswer={answerCall}
+            isVideoCall={call?.isVideo !== false} // Default to true if undefined
+          />
+        </React.Suspense>
       )}
 
       {/* Footer - Hidden on app-like pages */}

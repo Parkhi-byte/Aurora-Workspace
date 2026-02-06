@@ -80,10 +80,11 @@ export const setupSocket = (io) => {
                 const room = videoRooms.get(roomId);
 
                 // Add user to room
-                room.set(userId, { userId, userName, socketId: socket.id });
+                const uid = userId.toString();
+                room.set(uid, { userId: uid, userName, socketId: socket.id });
                 socket.join(roomId);
 
-                // Get all participants (without isMe flag - frontend will determine this)
+                // Get all participants
                 const participants = Array.from(room.values()).map(p => ({
                     id: p.userId,
                     name: p.userName
@@ -96,12 +97,12 @@ export const setupSocket = (io) => {
 
                 // Notify OTHER users in room about new participant
                 socket.to(roomId).emit("userJoinedRoom", {
-                    userId,
+                    userId: uid,
                     userName,
                     participants
                 });
 
-                console.log(`Room ${roomId} now has ${room.size} participants:`, participants.map(p => p.name));
+                console.log(`[VideoRoom] ${roomId}: ${userName} joined. Total: ${room.size}`);
             } else {
                 // Legacy room join (for other features, e.g., scheduled links)
                 socket.join(roomId);

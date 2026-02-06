@@ -187,18 +187,21 @@ const ActiveCallRoom = ({
                                 )}
                             </div>
 
-                            {Array.from(remoteStreams.entries()).map(([userId, { stream, name }]) => (
-                                <RemoteVideo
-                                    key={userId}
-                                    userId={userId}
-                                    stream={stream}
-                                    name={name}
-                                    connectionState={peerStates.get(userId)}
-                                    onRetry={() => retryConnection(userId, name)}
-                                />
-                            ))}
+                            {participants.filter(p => p.id !== user._id).map((participant) => {
+                                const remoteStreamData = remoteStreams.get(participant.id);
+                                return (
+                                    <RemoteVideo
+                                        key={participant.id}
+                                        userId={participant.id}
+                                        stream={remoteStreamData?.stream}
+                                        name={participant.name}
+                                        connectionState={peerStates.get(participant.id)}
+                                        onRetry={() => retryConnection(participant.id, participant.name)}
+                                    />
+                                );
+                            })}
 
-                            {remoteStreams.size === 0 && (
+                            {participants.length <= 1 && (
                                 <div className="relative bg-white/50 dark:bg-gray-800/50 rounded-3xl overflow-hidden border-2 border-dashed border-gray-300 dark:border-gray-700 flex items-center justify-center backdrop-blur-sm aspect-video">
                                     <div className="text-center px-8">
                                         <div className="w-20 h-20 bg-gray-100 dark:bg-gray-700/50 rounded-full flex items-center justify-center mx-auto mb-4 border-2 border-gray-200 dark:border-gray-600">

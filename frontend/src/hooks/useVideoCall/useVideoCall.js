@@ -36,6 +36,9 @@ export const useVideoCall = () => {
     const messagesEndRef = useRef(null);
     const isInRoomRef = useRef(false);
     const roomIdRef = useRef('');
+    const makingOfferRef = useRef(new Map()); // Map of userId -> boolean
+    const ignoreOfferRef = useRef(new Map()); // Map of userId -> boolean
+    const initiatorsRef = useRef(new Map()); // Map of userId -> boolean
 
     useEffect(() => {
         isInRoomRef.current = isInRoom;
@@ -56,6 +59,13 @@ export const useVideoCall = () => {
         }
     }, [socketConnected]);
 
+    // Automatically attach stream to local video ref
+    useEffect(() => {
+        if (myVideoRef.current && stream) {
+            myVideoRef.current.srcObject = stream;
+        }
+    }, [stream, myVideoRef]);
+
     const generateRoomId = () => {
         const chars = 'ABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789';
         let id = '';
@@ -75,6 +85,7 @@ export const useVideoCall = () => {
     const getUserMedia = async () => {
         try {
             setMediaError(null);
+            // Try getting both video and audio
             const mediaStream = await navigator.mediaDevices.getUserMedia({
                 video: { width: { ideal: 1280 }, height: { ideal: 720 } },
                 audio: { echoCancellation: true, noiseSuppression: true }
@@ -82,27 +93,36 @@ export const useVideoCall = () => {
             setStream(mediaStream);
             streamRef.current = mediaStream;
             setHasMedia(true);
-            if (myVideoRef.current) {
-                myVideoRef.current.srcObject = mediaStream;
-            }
+            setIsVideoOff(false);
             return mediaStream;
         } catch (err) {
-            console.error('Media error:', err);
-            let errorMessage = 'Camera/microphone not available';
+            console.warn('Initial media access failed, trying audio only:', err);
 
-            if (err.name === 'NotAllowedError' || err.name === 'PermissionDeniedError') {
-                errorMessage = 'Camera/microphone permission denied. Please allow access in your browser settings.';
-            } else if (err.name === 'NotFoundError' || err.name === 'DevicesNotFoundError') {
-                errorMessage = 'No camera or microphone found on this device.';
-            } else if (err.name === 'NotReadableError' || err.name === 'TrackStartError') {
-                errorMessage = 'Camera/microphone is already in use by another application.';
-            } else if (err.name === 'OverconstrainedError') {
-                errorMessage = 'Camera constraints could not be satisfied.';
+            try {
+                // Fallback to audio only
+                const audioOnlyStream = await navigator.mediaDevices.getUserMedia({
+                    video: false,
+                    audio: { echoCancellation: true, noiseSuppression: true }
+                });
+                setStream(audioOnlyStream);
+                streamRef.current = audioOnlyStream;
+                setHasMedia(true);
+                setIsVideoOff(true);
+                return audioOnlyStream;
+            } catch (audioErr) {
+                console.error('Final media error:', audioErr);
+                let errorMessage = 'Camera/microphone not available';
+
+                if (audioErr.name === 'NotAllowedError' || audioErr.name === 'PermissionDeniedError') {
+                    errorMessage = 'Camera/microphone permission denied. Please allow access in your browser settings.';
+                } else if (audioErr.name === 'NotFoundError' || audioErr.name === 'DevicesNotFoundError') {
+                    errorMessage = 'No camera or microphone found on this device.';
+                }
+
+                setMediaError(errorMessage);
+                setHasMedia(false);
+                return null;
             }
-
-            setMediaError(errorMessage);
-            setHasMedia(false);
-            return null;
         }
     };
 
@@ -137,6 +157,8 @@ export const useVideoCall = () => {
 
             setRoomId(newRoomId);
             setIsInRoom(true);
+            isInRoomRef.current = true;
+            roomIdRef.current = newRoomId;
 
             socketRef.current.emit('joinRoom', {
                 roomId: newRoomId,
@@ -172,6 +194,8 @@ export const useVideoCall = () => {
             const normalizedRoomId = inputRoomId.toUpperCase();
             setRoomId(normalizedRoomId);
             setIsInRoom(true);
+            isInRoomRef.current = true;
+            roomIdRef.current = normalizedRoomId;
 
             socketRef.current.emit('joinRoom', {
                 roomId: normalizedRoomId,
@@ -306,12 +330,16 @@ export const useVideoCall = () => {
             iceServers: [
                 { urls: 'stun:stun.l.google.com:19302' },
                 { urls: 'stun:stun1.l.google.com:19302' },
-                { urls: 'stun:stun2.l.google.com:19302' }
+                { urls: 'stun:stun2.l.google.com:19302' },
+                { urls: 'stun:stun3.l.google.com:19302' },
+                { urls: 'stun:stun4.l.google.com:19302' },
+                { urls: 'stun:global.stun.twilio.com:3478' }
             ],
             iceCandidatePoolSize: 10
         });
 
         peersRef.current.set(userId, peer);
+        initiatorsRef.current.set(userId, isInitiator);
 
         if (streamRef.current) {
             streamRef.current.getTracks().forEach(track => {
@@ -365,6 +393,38 @@ export const useVideoCall = () => {
             }
         };
 
+        peer.onnegotiationneeded = async () => {
+            try {
+                if (!isInitiator) return;
+
+                const makingOffer = makingOfferRef.current.get(userId);
+                if (makingOffer) return;
+
+                if (socketRef.current && peer.signalingState === 'stable') {
+                    console.log(`Negotiation needed for ${userName}, creating offer`);
+                    makingOfferRef.current.set(userId, true);
+                    const offer = await peer.createOffer({
+                        offerToReceiveAudio: true,
+                        offerToReceiveVideo: true
+                    });
+
+                    // Check if signaling state is still stable before setting local description
+                    if (peer.signalingState !== 'stable') return;
+
+                    await peer.setLocalDescription(offer);
+                    socketRef.current.emit('sendOffer', {
+                        to: userId,
+                        offer: peer.localDescription,
+                        roomId: roomIdRef.current
+                    });
+                }
+            } catch (err) {
+                console.error(`Error during renegotiation for ${userName}:`, err);
+            } finally {
+                makingOfferRef.current.set(userId, false);
+            }
+        };
+
         peer.ontrack = (event) => {
             console.log('Received remote track from:', userName, 'kind:', event.track.kind);
             setRemoteStreams(prev => new Map(prev).set(userId, {
@@ -383,33 +443,18 @@ export const useVideoCall = () => {
             }
         };
 
-        if (isInitiator) {
-            peer.createOffer()
-                .then(offer => peer.setLocalDescription(offer))
-                .then(() => {
-                    if (socketRef.current) {
-                        socketRef.current.emit('sendOffer', {
-                            to: userId,
-                            offer: peer.localDescription,
-                            roomId
-                        });
-                    }
-                })
-                .catch(err => {
-                    console.error('Error creating offer:', err);
-                    setError(`Failed to connect with ${userName}`);
-                });
-        }
+        // Manual offer creation removed in favor of onnegotiationneeded
 
         return peer;
     };
 
     useEffect(() => {
-        if (!socketRef.current || !isInRoom) return;
+        if (!socketRef.current) return;
 
         const socket = socketRef.current;
 
         const handleRoomJoined = ({ participants }) => {
+            if (!isInRoomRef.current) return;
             console.log('Successfully joined room with participants:', participants);
             setParticipants(participants);
             setError(null);
@@ -423,6 +468,7 @@ export const useVideoCall = () => {
         };
 
         const handleUserJoinedRoom = ({ userId, userName, participants: roomParticipants }) => {
+            if (!isInRoomRef.current) return;
             console.log('User joined:', userName, 'Total participants:', roomParticipants.length);
             setParticipants(roomParticipants);
 
@@ -432,6 +478,7 @@ export const useVideoCall = () => {
         };
 
         const handleUserLeftRoom = ({ userId, participants: roomParticipants }) => {
+            if (!isInRoomRef.current) return;
             console.log('User left:', userId);
             setParticipants(roomParticipants);
 
@@ -456,13 +503,31 @@ export const useVideoCall = () => {
                 newMap.delete(userId);
                 return newMap;
             });
+
+            initiatorsRef.current.delete(userId);
+            makingOfferRef.current.delete(userId);
+            ignoreOfferRef.current.delete(userId);
         };
 
         const handleReceiveOffer = async ({ from, fromName, offer }) => {
+            if (!isInRoomRef.current) return;
             console.log('Received offer from:', fromName);
             const peer = createPeerConnection(from, fromName, false);
 
             try {
+                // Tracking role for "polite" peer negotiation
+                const isLocalInitiator = initiatorsRef.current.get(from) || false;
+                const makingOffer = makingOfferRef.current.get(from) || false;
+                const offerCollision = makingOffer || peer.signalingState !== 'stable';
+
+                const shouldIgnore = !isLocalInitiator && offerCollision;
+                ignoreOfferRef.current.set(from, shouldIgnore);
+
+                if (shouldIgnore) {
+                    console.log('Ignoring offer collision for:', fromName);
+                    return;
+                }
+
                 await peer.setRemoteDescription(new RTCSessionDescription(offer));
                 const answer = await peer.createAnswer();
                 await peer.setLocalDescription(answer);
@@ -470,7 +535,7 @@ export const useVideoCall = () => {
                 socket.emit('sendAnswer', {
                     to: from,
                     answer: peer.localDescription,
-                    roomId
+                    roomId: roomIdRef.current
                 });
             } catch (err) {
                 console.error('Error handling offer:', err);
@@ -479,6 +544,7 @@ export const useVideoCall = () => {
         };
 
         const handleReceiveAnswer = async ({ from, answer }) => {
+            if (!isInRoomRef.current) return;
             console.log('Received answer from:', from);
             const peer = peersRef.current.get(from);
 
@@ -493,6 +559,7 @@ export const useVideoCall = () => {
         };
 
         const handleReceiveIceCandidate = async ({ from, candidate }) => {
+            if (!isInRoomRef.current) return;
             const peer = peersRef.current.get(from);
 
             if (peer && peer.remoteDescription) {
@@ -505,6 +572,7 @@ export const useVideoCall = () => {
         };
 
         const handleRoomMessage = ({ message }) => {
+            if (!isInRoomRef.current) return;
             setMessages(prev => [...prev, message]);
             if (!showChat) {
                 setUnreadCount(prev => prev + 1);
@@ -528,7 +596,7 @@ export const useVideoCall = () => {
             socket.off('receiveIceCandidate', handleReceiveIceCandidate);
             socket.off('roomMessage', handleRoomMessage);
         };
-    }, [isInRoom, roomId, user, showChat]);
+    }, [socketConnected, user._id]); // Add user._id for stable dependencies
 
     useEffect(() => {
         if (showChat) {
@@ -555,6 +623,9 @@ export const useVideoCall = () => {
                 peer.close();
             });
             peersRef.current.clear();
+            initiatorsRef.current.clear();
+            makingOfferRef.current.clear();
+            ignoreOfferRef.current.clear();
         };
     }, []);
 

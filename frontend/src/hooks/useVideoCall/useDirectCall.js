@@ -30,6 +30,9 @@ export const useDirectCall = ({
     const screenStreamRef = useRef(); // Track screen share stream for cleanup
     const candidateQueue = useRef([]);
     const callStartTime = useRef(null);
+    const makingOfferRef = useRef(false);
+    const ignoreOfferRef = useRef(false);
+    const isInitiator = !isIncoming;
 
     // Cleanup function
     const cleanup = useCallback(() => {
@@ -122,6 +125,8 @@ export const useDirectCall = ({
                 { urls: "stun:stun.l.google.com:19302" },
                 { urls: "stun:stun1.l.google.com:19302" },
                 { urls: "stun:stun2.l.google.com:19302" },
+                { urls: "stun:stun3.l.google.com:19302" },
+                { urls: "stun:stun4.l.google.com:19302" },
                 { urls: "stun:global.stun.twilio.com:3478" }
             ],
             iceCandidatePoolSize: 10
@@ -177,6 +182,39 @@ export const useDirectCall = ({
 
         peer.oniceconnectionstatechange = () => {
             logger.log("ICE connection state:", peer.iceConnectionState);
+        };
+
+        // Handle negotiation needed (for track changes)
+        peer.onnegotiationneeded = async () => {
+            try {
+                if (!isInitiator) return;
+                if (makingOfferRef.current) return;
+
+                if (socketRef.current?.connected && peer.signalingState === 'stable') {
+                    logger.log("Negotiation needed, creating new offer");
+                    makingOfferRef.current = true;
+
+                    const offer = await peer.createOffer({
+                        offerToReceiveAudio: true,
+                        offerToReceiveVideo: true
+                    });
+
+                    if (peer.signalingState !== 'stable') return;
+
+                    await peer.setLocalDescription(offer);
+                    socketRef.current.emit("callUser", {
+                        userToCall: isIncoming ? callerId : userToCall,
+                        signalData: peer.localDescription,
+                        from: user?._id || user?.id,
+                        name: user?.name,
+                        isVideo: isVideoCall
+                    });
+                }
+            } catch (err) {
+                logger.error("Error during renegotiation:", err);
+            } finally {
+                makingOfferRef.current = false;
+            }
         };
 
         return peer;
@@ -253,31 +291,8 @@ export const useDirectCall = ({
                 // Create peer connection after media is ready (or attempting to)
                 // Pass mediaStream only if it exists
                 if (mediaStream) {
-                    const peer = createPeerConnection(mediaStream);
-
-                    // If outgoing call, create and send offer
-                    if (!isIncoming && userToCall) {
-                        logger.log("Creating offer for outgoing call");
-                        try {
-                            const offer = await peer.createOffer({
-                                offerToReceiveAudio: true,
-                                offerToReceiveVideo: true
-                            });
-                            await peer.setLocalDescription(offer);
-
-                            logger.log("Sending offer to", userToCall);
-                            socket.emit("callUser", {
-                                userToCall: userToCall,
-                                signalData: peer.localDescription,
-                                from: user?._id || user?.id,
-                                name: user?.name,
-                                isVideo: isVideoCall
-                            });
-                        } catch (err) {
-                            logger.error("Error creating offer:", err);
-                            setMediaError("Failed to initiate call. Please try again.");
-                        }
-                    }
+                    createPeerConnection(mediaStream);
+                    // Manual offer creation removed in favor of onnegotiationneeded
                 }
 
                 // Store cleanup for these specific listeners
@@ -301,6 +316,13 @@ export const useDirectCall = ({
         };
     }, [getMedia, createPeerConnection, cleanup, isIncoming, userToCall, isVideoCall, user, socketRef, onEndCall]);
 
+    // Automatically attach stream to local video ref
+    useEffect(() => {
+        if (myVideo.current && stream) {
+            myVideo.current.srcObject = stream;
+        }
+    }, [stream, myVideo]);
+
     // Answer incoming call
     const answerCall = async () => {
         logger.log("Answering call");
@@ -314,6 +336,14 @@ export const useDirectCall = ({
         }
 
         try {
+            const offerCollision = makingOfferRef.current || peer.signalingState !== 'stable';
+
+            ignoreOfferRef.current = !isInitiator && offerCollision;
+            if (ignoreOfferRef.current) {
+                logger.log("Ignoring offer collision");
+                return;
+            }
+
             await peer.setRemoteDescription(new RTCSessionDescription(callerSignal));
             logger.log("Remote offer set, processing candidates");
             processCandidateQueue();
