@@ -128,15 +128,9 @@ export const ChatProvider = ({ children }) => {
     // Unlock audio context on first interaction
     useEffect(() => {
         const unlockAudio = () => {
-            const sounds = [ringtoneRef.current];
-            sounds.forEach(sound => {
-                if (sound) {
-                    sound.play().then(() => {
-                        sound.pause();
-                        sound.currentTime = 0;
-                    }).catch(() => { });
-                }
-            });
+            // Use a silent sound to unlock audio context without playing the ringtone
+            const audio = new Audio("data:audio/wav;base64,UklGRigAAABXQVZFZm10IBIAAAABAAEARKwAAIhYAQACABAAAABkYXRhAgAAAAEA");
+            audio.play().catch(() => { });
             document.removeEventListener('click', unlockAudio);
             document.removeEventListener('keydown', unlockAudio);
         };

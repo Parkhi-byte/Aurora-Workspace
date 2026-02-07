@@ -18,6 +18,7 @@ const Notifications = React.lazy(() => import('./pages/Notifications'));
 const TeamManagement = React.lazy(() => import('./pages/TeamManagement'));
 const PasswordManager = React.lazy(() => import('./pages/PasswordManager'));
 const Kanban = React.lazy(() => import('./pages/Kanban'));
+const Calendar = React.lazy(() => import('./pages/Calendar'));
 const Pricing = React.lazy(() => import('./pages/Pricing'));
 const About = React.lazy(() => import('./pages/About'));
 const Profile = React.lazy(() => import('./pages/Profile'));
@@ -174,6 +175,16 @@ function AppRoutes() {
             <ProtectedRoute>
               <Layout>
                 <Kanban />
+              </Layout>
+            </ProtectedRoute>
+          }
+        />
+        <Route
+          path="/calendar"
+          element={
+            <ProtectedRoute>
+              <Layout>
+                <Calendar />
               </Layout>
             </ProtectedRoute>
           }

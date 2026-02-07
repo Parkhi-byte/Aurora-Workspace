@@ -21,7 +21,8 @@ const Layout = ({ children }) => {
     '/team-management',
     '/password-manager',
     '/notifications',
-    '/profile'
+    '/profile',
+    '/calendar'
   ];
   const shouldHideFooter = hiddenFooterRoutes.some(route => location.pathname.startsWith(route));
 

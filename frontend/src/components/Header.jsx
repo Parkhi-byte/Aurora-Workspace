@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { Link, useLocation, useNavigate } from 'react-router-dom';
-import { Video, MessageCircle, FileText, Home, Bell, Search, Menu, X, LogOut, Lock, Sun, Moon, Kanban, LogIn, Users, Shield, ChevronDown, Settings } from 'lucide-react';
+import { Video, MessageCircle, FileText, Home, Bell, Search, Menu, X, LogOut, Lock, Sun, Moon, Kanban, LogIn, Users, Shield, ChevronDown, Settings, Calendar } from 'lucide-react';
 import { useAuth } from '../context/AuthContext';
 import { useTheme } from '../context/ThemeContext';
 import { motion, AnimatePresence } from 'framer-motion';
@@ -48,6 +48,7 @@ const Header = () => {
     { path: '/document-share', icon: FileText, label: 'Docs' },
     { path: '/password-manager', icon: Lock, label: 'Vault' },
     { path: '/kanban', icon: Kanban, label: 'Board' },
+    { path: '/calendar', icon: Calendar, label: 'Calendar' },
     { path: '/team-management', icon: Users, label: 'Team' }
   ];
 
