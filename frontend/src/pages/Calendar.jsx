@@ -6,6 +6,7 @@ import 'react-big-calendar/lib/css/react-big-calendar.css';
 import { Calendar as CalendarIcon, Plus } from 'lucide-react';
 import PageLoader from '../components/PageLoader';
 import { useCalendar } from '../hooks/useCalendar/useCalendar';
+import { useTeamManagement } from '../hooks/useTeamManagement/useTeamManagement';
 import EventModal from '../components/Calendar/EventModal';
 
 // Setup the localizer for react-big-calendar
@@ -13,6 +14,7 @@ const localizer = momentLocalizer(moment);
 
 const CalendarPage = () => {
     const { events, loading, createEvent, updateEvent, deleteEvent } = useCalendar();
+    const { currentTeam } = useTeamManagement();
     const [showModal, setShowModal] = useState(false);
     const [selectedEvent, setSelectedEvent] = useState(null);
 
@@ -35,7 +37,7 @@ const CalendarPage = () => {
         if (selectedEvent && selectedEvent._id) {
             success = await updateEvent(selectedEvent._id, eventData);
         } else {
-            success = await createEvent(eventData);
+            success = await createEvent(eventData, currentTeam?.id);
         }
 
         if (success) {
