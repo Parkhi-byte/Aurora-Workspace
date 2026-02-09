@@ -2,6 +2,7 @@
 import React, { createContext, useContext, useState, useEffect, useRef, useCallback } from 'react';
 import { useAuth } from './AuthContext';
 import io from 'socket.io-client';
+import { logger } from '../utils/logger';
 
 // Use files from public/sounds to avoid cache issues
 const ringtoneSound = '/sounds/ringtone.mp3';
@@ -121,7 +122,7 @@ export const ChatProvider = ({ children }) => {
                 });
             }
         } catch (err) {
-            console.error("Failed to fetch chats", err);
+            logger.error("Failed to fetch chats", err);
         }
     }, [user]);
 
@@ -163,12 +164,12 @@ export const ChatProvider = ({ children }) => {
         socketRef.current.emit("setup", user);
 
         socketRef.current.on('connected', () => {
-            console.log('Socket connected');
+            logger.log('Socket connected');
             setSocketConnected(true);
         });
 
         socketRef.current.on('disconnect', () => {
-            console.log('Socket disconnected');
+            logger.log('Socket disconnected');
             setSocketConnected(false);
             setOnlineUsers(new Set()); // Clear online users on disconnect
         });
@@ -259,7 +260,6 @@ export const ChatProvider = ({ children }) => {
     const [callAccepted, setCallAccepted] = useState(false);
     const [callEnded, setCallEnded] = useState(false);
     const [isCalling, setIsCalling] = useState(false);
-    const [stream, setStream] = useState(null);
 
     const startCall = (userId, userName, isVideo = true) => {
         setIsCalling(true);
@@ -283,10 +283,10 @@ export const ChatProvider = ({ children }) => {
 
     useEffect(() => {
         if (call.isReceivingCall && !callAccepted) {
-            console.log("Attempting to play ringtone");
+            logger.log("Attempting to play ringtone");
             ringtoneRef.current?.play()
-                .then(() => console.log("Ringtone played successfully"))
-                .catch(e => console.error("Ringtone play failed:", e));
+                .then(() => logger.log("Ringtone played successfully"))
+                .catch(e => logger.error("Ringtone play failed:", e));
         } else {
             if (ringtoneRef.current) {
                 ringtoneRef.current.pause();
@@ -300,7 +300,7 @@ export const ChatProvider = ({ children }) => {
         if (!socketRef.current) return;
 
         socketRef.current.on('callUser', ({ from, name, signal, isVideo }) => {
-            console.log("Receiving call from", name, "Video:", isVideo);
+            logger.log("Receiving call from", name, "Video:", isVideo);
             setCall({ isReceivingCall: true, from, name, signal, isVideo });
         });
 

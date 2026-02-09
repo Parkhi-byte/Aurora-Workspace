@@ -1,5 +1,6 @@
 import { useState, useEffect, useRef, useCallback } from 'react';
 import { useChatContext } from '../../context/ChatContext';
+import { logger } from '../../utils/logger';
 
 export const useVideoCall = () => {
     const { user, socketRef, socketConnected } = useChatContext();
@@ -96,7 +97,7 @@ export const useVideoCall = () => {
             setIsVideoOff(false);
             return mediaStream;
         } catch (err) {
-            console.warn('Initial media access failed, trying audio only:', err);
+            logger.warn('Initial media access failed, trying audio only:', err);
 
             try {
                 // Fallback to audio only
@@ -110,7 +111,7 @@ export const useVideoCall = () => {
                 setIsVideoOff(true);
                 return audioOnlyStream;
             } catch (audioErr) {
-                console.error('Final media error:', audioErr);
+                logger.error('Final media error:', audioErr);
                 let errorMessage = 'Camera/microphone not available';
 
                 if (audioErr.name === 'NotAllowedError' || audioErr.name === 'PermissionDeniedError') {
@@ -166,7 +167,7 @@ export const useVideoCall = () => {
                 userName: user.name
             });
         } catch (err) {
-            console.error('Error creating room:', err);
+            logger.error('Error creating room:', err);
             setError('Failed to create room. Please try again.');
             setIsInRoom(false);
         } finally {
@@ -203,7 +204,7 @@ export const useVideoCall = () => {
                 userName: user.name
             });
         } catch (err) {
-            console.error('Error joining room:', err);
+            logger.error('Error joining room:', err);
             setError('Failed to join room. Please try again.');
             setIsInRoom(false);
         } finally {
@@ -214,7 +215,7 @@ export const useVideoCall = () => {
     const sendMessage = () => {
         if (!messageInput.trim()) return;
         if (!socketRef.current) {
-            console.error('Socket not initialized');
+            logger.error('Socket not initialized');
             return;
         }
 
@@ -240,13 +241,13 @@ export const useVideoCall = () => {
         if (mediaStream) {
             mediaStream.getTracks().forEach(track => {
                 track.stop();
-                console.log(`Stopped ${track.kind} track`);
+                logger.log(`Stopped ${track.kind} track`);
             });
         }
     };
 
     const leaveRoom = () => {
-        console.log('Leaving room...');
+        logger.log('Leaving room...');
 
         if (streamRef.current) {
             stopStreamTracks(streamRef.current);
@@ -299,7 +300,7 @@ export const useVideoCall = () => {
     };
 
     const retryConnection = (userId, userName) => {
-        console.log(`Retrying connection to ${userName}...`);
+        logger.log(`Retrying connection to ${userName}...`);
 
         const existingPeer = peersRef.current.get(userId);
         if (existingPeer) {
@@ -320,11 +321,11 @@ export const useVideoCall = () => {
 
     const createPeerConnection = (userId, userName, isInitiator) => {
         if (peersRef.current.has(userId)) {
-            console.log('Peer connection already exists for:', userName);
+            logger.log('Peer connection already exists for:', userName);
             return peersRef.current.get(userId);
         }
 
-        console.log(`Creating ${isInitiator ? 'initiator' : 'receiver'} peer connection for:`, userName);
+        logger.log(`Creating ${isInitiator ? 'initiator' : 'receiver'} peer connection for:`, userName);
 
         const peer = new RTCPeerConnection({
             iceServers: [
@@ -348,11 +349,11 @@ export const useVideoCall = () => {
         }
 
         peer.onconnectionstatechange = () => {
-            console.log(`Peer connection state for ${userName}:`, peer.connectionState);
+            logger.log(`Peer connection state for ${userName}:`, peer.connectionState);
             setPeerStates(prev => new Map(prev).set(userId, peer.connectionState));
 
             if (peer.connectionState === 'failed') {
-                console.log(`Connection failed for ${userName}, will retry...`);
+                logger.log(`Connection failed for ${userName}, will retry...`);
                 setError(`Connection to ${userName} failed. Retrying...`);
 
                 setTimeout(() => {
@@ -361,10 +362,10 @@ export const useVideoCall = () => {
                     }
                 }, 3000);
             } else if (peer.connectionState === 'disconnected') {
-                console.log(`Connection disconnected for ${userName}`);
+                logger.log(`Connection disconnected for ${userName}`);
                 setTimeout(() => {
                     if (peer.connectionState === 'disconnected') {
-                        console.log(`Cleaning up disconnected peer for ${userName}`);
+                        logger.log(`Cleaning up disconnected peer for ${userName}`);
                         peer.close();
                         peersRef.current.delete(userId);
                         setRemoteStreams(prev => {
@@ -379,16 +380,16 @@ export const useVideoCall = () => {
                     }
                 }, 5000);
             } else if (peer.connectionState === 'connected') {
-                console.log(`Successfully connected to ${userName}`);
+                logger.log(`Successfully connected to ${userName}`);
                 setError(null);
             }
         };
 
         peer.oniceconnectionstatechange = () => {
-            console.log(`ICE connection state for ${userName}:`, peer.iceConnectionState);
+            logger.log(`ICE connection state for ${userName}:`, peer.iceConnectionState);
 
             if (peer.iceConnectionState === 'failed') {
-                console.log(`ICE connection failed for ${userName}, attempting ICE restart`);
+                logger.log(`ICE connection failed for ${userName}, attempting ICE restart`);
                 peer.restartIce();
             }
         };
@@ -401,7 +402,7 @@ export const useVideoCall = () => {
                 if (makingOffer) return;
 
                 if (socketRef.current && peer.signalingState === 'stable') {
-                    console.log(`Negotiation needed for ${userName}, creating offer`);
+                    logger.log(`Negotiation needed for ${userName}, creating offer`);
                     makingOfferRef.current.set(userId, true);
                     const offer = await peer.createOffer({
                         offerToReceiveAudio: true,
@@ -419,14 +420,14 @@ export const useVideoCall = () => {
                     });
                 }
             } catch (err) {
-                console.error(`Error during renegotiation for ${userName}:`, err);
+                logger.error(`Error during renegotiation for ${userName}:`, err);
             } finally {
                 makingOfferRef.current.set(userId, false);
             }
         };
 
         peer.ontrack = (event) => {
-            console.log('Received remote track from:', userName, 'kind:', event.track.kind);
+            logger.log('Received remote track from:', userName, 'kind:', event.track.kind);
             setRemoteStreams(prev => new Map(prev).set(userId, {
                 stream: event.streams[0],
                 name: userName
@@ -455,13 +456,13 @@ export const useVideoCall = () => {
 
         const handleRoomJoined = ({ participants }) => {
             if (!isInRoomRef.current) return;
-            console.log('Successfully joined room with participants:', participants);
+            logger.log('Successfully joined room with participants:', participants);
             setParticipants(participants);
             setError(null);
 
             participants.forEach(p => {
                 if (p.id !== user._id) {
-                    console.log('Creating peer connection for existing user:', p.name);
+                    logger.log('Creating peer connection for existing user:', p.name);
                     createPeerConnection(p.id, p.name, true);
                 }
             });
@@ -469,17 +470,17 @@ export const useVideoCall = () => {
 
         const handleUserJoinedRoom = ({ userId, userName, participants: roomParticipants }) => {
             if (!isInRoomRef.current) return;
-            console.log('User joined:', userName, 'Total participants:', roomParticipants.length);
+            logger.log('User joined:', userName, 'Total participants:', roomParticipants.length);
             setParticipants(roomParticipants);
 
             if (userId !== user._id) {
-                console.log('New user will initiate connection to us');
+                logger.log('New user will initiate connection to us');
             }
         };
 
         const handleUserLeftRoom = ({ userId, participants: roomParticipants }) => {
             if (!isInRoomRef.current) return;
-            console.log('User left:', userId);
+            logger.log('User left:', userId);
             setParticipants(roomParticipants);
 
             const peer = peersRef.current.get(userId);
@@ -511,7 +512,7 @@ export const useVideoCall = () => {
 
         const handleReceiveOffer = async ({ from, fromName, offer }) => {
             if (!isInRoomRef.current) return;
-            console.log('Received offer from:', fromName);
+            logger.log('Received offer from:', fromName);
             const peer = createPeerConnection(from, fromName, false);
 
             try {
@@ -524,7 +525,7 @@ export const useVideoCall = () => {
                 ignoreOfferRef.current.set(from, shouldIgnore);
 
                 if (shouldIgnore) {
-                    console.log('Ignoring offer collision for:', fromName);
+                    logger.log('Ignoring offer collision for:', fromName);
                     return;
                 }
 
@@ -538,21 +539,21 @@ export const useVideoCall = () => {
                     roomId: roomIdRef.current
                 });
             } catch (err) {
-                console.error('Error handling offer:', err);
+                logger.error('Error handling offer:', err);
                 setError(`Failed to connect with ${fromName}`);
             }
         };
 
         const handleReceiveAnswer = async ({ from, answer }) => {
             if (!isInRoomRef.current) return;
-            console.log('Received answer from:', from);
+            logger.log('Received answer from:', from);
             const peer = peersRef.current.get(from);
 
             if (peer) {
                 try {
                     await peer.setRemoteDescription(new RTCSessionDescription(answer));
                 } catch (err) {
-                    console.error('Error setting remote description:', err);
+                    logger.error('Error setting remote description:', err);
                     setError('Connection error occurred');
                 }
             }
@@ -566,7 +567,7 @@ export const useVideoCall = () => {
                 try {
                     await peer.addIceCandidate(new RTCIceCandidate(candidate));
                 } catch (err) {
-                    console.error('Error adding ICE candidate:', err);
+                    logger.error('Error adding ICE candidate:', err);
                 }
             }
         };
@@ -606,7 +607,7 @@ export const useVideoCall = () => {
 
     useEffect(() => {
         return () => {
-            console.log('Component unmounting, cleaning up...');
+            logger.log('Component unmounting, cleaning up...');
 
             if (isInRoomRef.current && socketRef.current && roomIdRef.current) {
                 socketRef.current.emit('leaveRoom', {

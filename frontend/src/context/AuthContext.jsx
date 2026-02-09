@@ -1,4 +1,5 @@
 import React, { createContext, useContext, useState, useEffect } from 'react';
+import { logger } from '../utils/logger';
 
 const AuthContext = createContext();
 
@@ -105,7 +106,7 @@ export const AuthProvider = ({ children }) => {
 
   const removeTeamMember = async (memberEmail) => {
     // Placeholder: Backend doesn't support this yet
-    console.log('removeTeamMember not implemented in backend yet');
+    logger.log('removeTeamMember not implemented in backend yet');
     return { success: false, error: 'Feature coming soon' };
   };
 
