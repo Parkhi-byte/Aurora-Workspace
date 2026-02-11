@@ -36,68 +36,87 @@ const CalendarSidebar = ({ events, onSelectEvent, activeFilters, onFilterChange 
     };
 
     return (
-        <div className="bg-white/50 dark:bg-gray-800/50 backdrop-blur-xl rounded-3xl shadow-xl border border-white/20 dark:border-gray-700 p-6 h-full flex flex-col gap-8 animate-fade-in-up">
+        <div className="bg-white dark:bg-gray-800 rounded-3xl shadow-sm border border-gray-200 dark:border-gray-700 h-full flex flex-col overflow-hidden">
 
             {/* Header */}
-            <div>
-                <h2 className="text-2xl font-bold bg-clip-text text-transparent bg-gradient-to-r from-indigo-600 to-purple-600 dark:from-indigo-400 dark:to-purple-400">
-                    Your Schedule
+            <div className="p-6 border-b border-gray-100 dark:border-gray-700/50">
+                <h2 className="text-xl font-bold text-gray-900 dark:text-white">
+                    Schedule
                 </h2>
-                <p className="text-gray-500 dark:text-gray-400 text-sm mt-1">
-                    Manage your upcoming events
-                </p>
+                <div className="flex items-center justify-between mt-4">
+                    <div className="text-xs font-semibold uppercase tracking-wider text-gray-500 dark:text-gray-400">
+                        Upcoming
+                    </div>
+                </div>
             </div>
 
-            {/* Upcoming Events */}
-            <div className="flex-1 overflow-y-auto custom-scrollbar">
-                <div className="flex items-center gap-2 mb-4 text-gray-800 dark:text-gray-200 font-semibold px-1">
-                    <Clock size={16} className="text-indigo-500" />
-                    <span>Upcoming</span>
-                </div>
-
+            {/* Upcoming Events List */}
+            <div className="flex-1 overflow-y-auto custom-scrollbar p-4 space-y-3">
                 {upcomingEvents.length > 0 ? (
-                    <div className="space-y-3">
-                        {upcomingEvents.map(evt => (
-                            <motion.div
-                                whileHover={{ scale: 1.02 }}
-                                whileTap={{ scale: 0.98 }}
-                                key={evt._id || evt.id}
-                                onClick={() => onSelectEvent(evt)}
-                                className="p-3 rounded-xl bg-white dark:bg-gray-900/50 border border-gray-100 dark:border-gray-800 shadow-sm hover:shadow-md transition-all cursor-pointer group"
-                            >
-                                <div className="flex items-start gap-3">
-                                    <div
-                                        className="w-1.5 h-10 rounded-full shrink-0"
-                                        style={{ backgroundColor: evt.color || '#3b82f6' }}
-                                    ></div>
-                                    <div className="flex-1 min-w-0">
-                                        <h4 className="font-semibold text-gray-900 dark:text-gray-100 truncate text-sm">
-                                            {evt.title || 'Untitled Event'}
-                                        </h4>
-                                        <div className="text-xs text-gray-500 dark:text-gray-400 mt-1 flex items-center gap-1.5">
-                                            <span>{moment(evt.start).format('MMM D')}</span>
-                                            <span className="w-1 h-1 rounded-full bg-gray-300 dark:bg-gray-600"></span>
-                                            <span>{moment(evt.start).format('h:mm A')}</span>
-                                        </div>
-                                    </div>
-                                    <ChevronRight size={16} className="text-gray-400 group-hover:text-indigo-500 transition-colors self-center opacity-0 group-hover:opacity-100" />
+                    upcomingEvents.map(evt => (
+                        <motion.div
+                            layout
+                            initial={{ opacity: 0, y: 10 }}
+                            animate={{ opacity: 1, y: 0 }}
+                            whileHover={{ scale: 1.01, x: 2 }}
+                            key={evt._id || evt.id}
+                            onClick={() => onSelectEvent(evt)}
+                            className="group relative p-3 rounded-2xl bg-gray-50 dark:bg-gray-700/30 border border-transparent hover:border-gray-200 dark:hover:border-gray-600 hover:bg-white dark:hover:bg-gray-700/50 hover:shadow-md transition-all cursor-pointer"
+                        >
+                            <div className="flex gap-3">
+                                <div className="flex flex-col items-center justify-center min-w-[3rem] px-2 py-1.5 bg-white dark:bg-gray-800 rounded-xl shadow-sm border border-gray-100 dark:border-gray-700">
+                                    <span className="text-xs font-bold text-gray-400 uppercase">
+                                        {moment(evt.start).format('MMM')}
+                                    </span>
+                                    <span className="text-lg font-extrabold text-gray-900 dark:text-white leading-none mt-0.5">
+                                        {moment(evt.start).format('D')}
+                                    </span>
                                 </div>
-                            </motion.div>
-                        ))}
-                    </div>
+                                <div className="flex-1 min-w-0 py-0.5">
+                                    <div className="flex items-center gap-2 mb-1">
+                                        <div
+                                            className="w-2 h-2 rounded-full ring-2 ring-white dark:ring-gray-800"
+                                            style={{ backgroundColor: evt.color || '#3b82f6' }}
+                                        />
+                                        <span className="text-xs font-medium text-gray-500 dark:text-gray-400">
+                                            {moment(evt.start).format('h:mm A')}
+                                        </span>
+                                    </div>
+                                    <h4 className="font-semibold text-gray-900 dark:text-gray-100 text-sm truncate leading-snug">
+                                        {evt.title || 'Untitled Event'}
+                                    </h4>
+                                </div>
+                                <div className="self-center opacity-0 group-hover:opacity-100 transition-opacity text-gray-400">
+                                    <ChevronRight size={16} />
+                                </div>
+                            </div>
+                        </motion.div>
+                    ))
                 ) : (
-                    <div className="text-center py-8 px-4 bg-gray-50 dark:bg-gray-900/30 rounded-xl border border-dashed border-gray-200 dark:border-gray-700">
-                        <CalendarIcon size={24} className="mx-auto text-gray-400 mb-2" />
-                        <p className="text-sm text-gray-500">No upcoming events</p>
+                    <div className="flex flex-col items-center justify-center h-48 text-center px-4">
+                        <div className="w-12 h-12 bg-gray-100 dark:bg-gray-800 rounded-full flex items-center justify-center mb-3">
+                            <CalendarIcon size={20} className="text-gray-400" />
+                        </div>
+                        <p className="text-sm font-medium text-gray-600 dark:text-gray-300">No upcoming events</p>
+                        <p className="text-xs text-gray-400 mt-1">Enjoy your free time!</p>
                     </div>
                 )}
             </div>
 
-            {/* Filters */}
-            <div>
-                <div className="flex items-center gap-2 mb-4 text-gray-800 dark:text-gray-200 font-semibold px-1">
-                    <Filter size={16} className="text-purple-500" />
-                    <span>Filter by Color</span>
+            {/* Filters Footer */}
+            <div className="p-5 border-t border-gray-100 dark:border-gray-700/50 bg-gray-50/50 dark:bg-gray-800/50">
+                <div className="flex items-center justify-between mb-3">
+                    <span className="text-xs font-semibold uppercase tracking-wider text-gray-500 dark:text-gray-400">
+                        Filter by Color
+                    </span>
+                    {activeFilters.length > 0 && (
+                        <button
+                            onClick={() => onFilterChange([])}
+                            className="text-xs font-medium text-indigo-600 dark:text-indigo-400 hover:underline"
+                        >
+                            Reset
+                        </button>
+                    )}
                 </div>
                 <div className="flex flex-wrap gap-2">
                     {colors.map(c => (
@@ -105,32 +124,19 @@ const CalendarSidebar = ({ events, onSelectEvent, activeFilters, onFilterChange 
                             key={c.color}
                             onClick={() => toggleFilter(c.color)}
                             className={`
-                                w-8 h-8 rounded-full flex items-center justify-center transition-all duration-200
-                                ${activeFilters.length === 0 || activeFilters.includes(c.color)
-                                    ? 'opacity-100 scale-100 shadow-sm'
-                                    : 'opacity-40 scale-90 grayscale'}
-                                hover:opacity-100 hover:scale-105
+                                w-7 h-7 rounded-lg flex items-center justify-center transition-all duration-200 ring-2 ring-offset-2 dark:ring-offset-gray-900
+                                ${activeFilters.includes(c.color)
+                                    ? 'ring-indigo-500/30 scale-110'
+                                    : 'ring-transparent hover:scale-105 opacity-70 hover:opacity-100'}
                             `}
                             style={{ backgroundColor: c.color }}
                             title={c.label}
                         >
                             {activeFilters.includes(c.color) && (
-                                <div className="w-2.5 h-2.5 rounded-full bg-white shadow-sm" />
+                                <Filter size={12} className="text-white drop-shadow-sm" strokeWidth={3} />
                             )}
                         </button>
                     ))}
-                    <button
-                        onClick={() => onFilterChange([])}
-                        className={`
-                            px-3 py-1.5 text-xs font-semibold rounded-lg transition-all
-                            ${activeFilters.length === 0
-                                ? 'bg-gray-100 text-gray-400 cursor-default'
-                                : 'bg-gray-200 dark:bg-gray-700 text-gray-600 dark:text-gray-300 hover:bg-gray-300 dark:hover:bg-gray-600'}
-                        `}
-                        disabled={activeFilters.length === 0}
-                    >
-                        Reset
-                    </button>
                 </div>
             </div>
 

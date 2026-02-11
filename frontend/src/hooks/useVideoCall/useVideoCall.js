@@ -40,6 +40,7 @@ export const useVideoCall = () => {
     const makingOfferRef = useRef(new Map()); // Map of userId -> boolean
     const ignoreOfferRef = useRef(new Map()); // Map of userId -> boolean
     const initiatorsRef = useRef(new Map()); // Map of userId -> boolean
+    const pendingCandidatesRef = useRef(new Map()); // Map of userId -> ICECandidate[]
 
     useEffect(() => {
         isInRoomRef.current = isInRoom;
@@ -65,7 +66,7 @@ export const useVideoCall = () => {
         if (myVideoRef.current && stream) {
             myVideoRef.current.srcObject = stream;
         }
-    }, [stream, myVideoRef]);
+    }, [stream, hasMedia, isVideoOff, myVideoRef]);
 
     const generateRoomId = () => {
         const chars = 'ABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789';
@@ -277,6 +278,7 @@ export const useVideoCall = () => {
         setPeerStates(new Map());
         setError(null);
         setMediaError(null);
+        pendingCandidatesRef.current.clear();
     };
 
     const toggleMute = () => {
@@ -396,21 +398,23 @@ export const useVideoCall = () => {
 
         peer.onnegotiationneeded = async () => {
             try {
-                if (!isInitiator) return;
-
                 const makingOffer = makingOfferRef.current.get(userId);
                 if (makingOffer) return;
 
                 if (socketRef.current && peer.signalingState === 'stable') {
                     logger.log(`Negotiation needed for ${userName}, creating offer`);
                     makingOfferRef.current.set(userId, true);
+
                     const offer = await peer.createOffer({
                         offerToReceiveAudio: true,
                         offerToReceiveVideo: true
                     });
 
-                    // Check if signaling state is still stable before setting local description
-                    if (peer.signalingState !== 'stable') return;
+                    // Check if signaling state is still stable
+                    if (peer.signalingState !== 'stable') {
+                        makingOfferRef.current.set(userId, false);
+                        return;
+                    }
 
                     await peer.setLocalDescription(offer);
                     socketRef.current.emit('sendOffer', {
@@ -421,6 +425,7 @@ export const useVideoCall = () => {
                 }
             } catch (err) {
                 logger.error(`Error during renegotiation for ${userName}:`, err);
+                makingOfferRef.current.set(userId, false);
             } finally {
                 makingOfferRef.current.set(userId, false);
             }
@@ -439,7 +444,7 @@ export const useVideoCall = () => {
                 socketRef.current.emit('sendIceCandidate', {
                     to: userId,
                     candidate: event.candidate,
-                    roomId
+                    roomId: roomIdRef.current
                 });
             }
         };
@@ -513,23 +518,50 @@ export const useVideoCall = () => {
         const handleReceiveOffer = async ({ from, fromName, offer }) => {
             if (!isInRoomRef.current) return;
             logger.log('Received offer from:', fromName);
-            const peer = createPeerConnection(from, fromName, false);
+
+            let peer = peersRef.current.get(from);
 
             try {
-                // Tracking role for "polite" peer negotiation
-                const isLocalInitiator = initiatorsRef.current.get(from) || false;
-                const makingOffer = makingOfferRef.current.get(from) || false;
-                const offerCollision = makingOffer || peer.signalingState !== 'stable';
+                if (peer) {
+                    // We already have a peer connection.
+                    // If we are also trying to make an offer (collision), 
+                    // we are the "polite" peer if we are NOT the initiator.
+                    const isLocalInitiator = initiatorsRef.current.get(from) || false;
+                    const makingOffer = makingOfferRef.current.get(from) || false;
+                    const offerCollision = makingOffer || peer.signalingState !== 'stable';
 
-                const shouldIgnore = !isLocalInitiator && offerCollision;
-                ignoreOfferRef.current.set(from, shouldIgnore);
+                    if (offerCollision) {
+                        if (isLocalInitiator) {
+                            // We are the initiator (impolite peer) — ignore the incoming offer
+                            logger.log('Ignoring offer collision (we are initiator) for:', fromName);
+                            return;
+                        }
 
-                if (shouldIgnore) {
-                    logger.log('Ignoring offer collision for:', fromName);
-                    return;
+                        // We are the polite peer — rollback our own offer and accept theirs
+                        logger.log('Rolling back local description to accept offer from:', fromName);
+                        await peer.setLocalDescription({ type: 'rollback' });
+                    }
+                } else {
+                    // No existing peer — create one as non-initiator
+                    peer = createPeerConnection(from, fromName, false);
                 }
 
                 await peer.setRemoteDescription(new RTCSessionDescription(offer));
+
+                // Apply any buffered ICE candidates now that remoteDescription is set
+                const pending = pendingCandidatesRef.current.get(from) || [];
+                if (pending.length > 0) {
+                    logger.log(`Applying ${pending.length} buffered ICE candidates for ${fromName}`);
+                    for (const candidate of pending) {
+                        try {
+                            await peer.addIceCandidate(new RTCIceCandidate(candidate));
+                        } catch (e) {
+                            logger.error('Error adding buffered ICE candidate:', e);
+                        }
+                    }
+                    pendingCandidatesRef.current.delete(from);
+                }
+
                 const answer = await peer.createAnswer();
                 await peer.setLocalDescription(answer);
 
@@ -551,7 +583,25 @@ export const useVideoCall = () => {
 
             if (peer) {
                 try {
-                    await peer.setRemoteDescription(new RTCSessionDescription(answer));
+                    if (peer.signalingState === 'have-local-offer') {
+                        await peer.setRemoteDescription(new RTCSessionDescription(answer));
+
+                        // Apply any buffered ICE candidates
+                        const pending = pendingCandidatesRef.current.get(from) || [];
+                        if (pending.length > 0) {
+                            logger.log(`Applying ${pending.length} buffered ICE candidates after answer from ${from}`);
+                            for (const candidate of pending) {
+                                try {
+                                    await peer.addIceCandidate(new RTCIceCandidate(candidate));
+                                } catch (e) {
+                                    logger.error('Error adding buffered ICE candidate:', e);
+                                }
+                            }
+                            pendingCandidatesRef.current.delete(from);
+                        }
+                    } else {
+                        logger.warn(`Received answer in unexpected state: ${peer.signalingState}`);
+                    }
                 } catch (err) {
                     logger.error('Error setting remote description:', err);
                     setError('Connection error occurred');
@@ -569,6 +619,13 @@ export const useVideoCall = () => {
                 } catch (err) {
                     logger.error('Error adding ICE candidate:', err);
                 }
+            } else {
+                // Buffer the candidate until remoteDescription is set
+                logger.log(`Buffering ICE candidate from ${from} (no remoteDescription yet)`);
+                if (!pendingCandidatesRef.current.has(from)) {
+                    pendingCandidatesRef.current.set(from, []);
+                }
+                pendingCandidatesRef.current.get(from).push(candidate);
             }
         };
 
@@ -627,6 +684,7 @@ export const useVideoCall = () => {
             initiatorsRef.current.clear();
             makingOfferRef.current.clear();
             ignoreOfferRef.current.clear();
+            pendingCandidatesRef.current.clear();
         };
     }, []);
 

@@ -6,25 +6,50 @@ const RemoteVideo = ({ userId, stream, name, connectionState, onRetry }) => {
     const [hasVideo, setHasVideo] = useState(false);
 
     useEffect(() => {
-        if (videoRef.current && stream) {
-            videoRef.current.srcObject = stream;
+        if (!stream) return;
 
+        if (videoRef.current) {
+            videoRef.current.srcObject = stream;
+        }
+
+        const checkVideo = () => {
             const videoTracks = stream.getVideoTracks();
             setHasVideo(videoTracks.length > 0 && videoTracks[0].enabled);
+        };
 
-            const handleTrackEnded = () => setHasVideo(false);
+        checkVideo();
 
-            stream.getVideoTracks().forEach(track => {
-                track.addEventListener('ended', handleTrackEnded);
+        const handleTrackChange = () => {
+            checkVideo();
+        };
+
+        // Listen for tracks being added or removed from the stream
+        stream.addEventListener('addtrack', handleTrackChange);
+        stream.addEventListener('removetrack', handleTrackChange);
+
+        // Listen for mute/unmute/ended on existing tracks
+        const videoTracks = stream.getVideoTracks();
+        const handleTrackMute = () => checkVideo();
+        const handleTrackUnmute = () => checkVideo();
+        const handleTrackEnded = () => checkVideo();
+
+        videoTracks.forEach(track => {
+            track.addEventListener('ended', handleTrackEnded);
+            track.addEventListener('mute', handleTrackMute);
+            track.addEventListener('unmute', handleTrackUnmute);
+        });
+
+        return () => {
+            stream.removeEventListener('addtrack', handleTrackChange);
+            stream.removeEventListener('removetrack', handleTrackChange);
+
+            videoTracks.forEach(track => {
+                track.removeEventListener('ended', handleTrackEnded);
+                track.removeEventListener('mute', handleTrackMute);
+                track.removeEventListener('unmute', handleTrackUnmute);
             });
-
-            return () => {
-                stream.getVideoTracks().forEach(track => {
-                    track.removeEventListener('ended', handleTrackEnded);
-                });
-            };
-        }
-    }, [stream]);
+        };
+    }, [stream, hasVideo]);
 
     const isConnecting = connectionState === 'new' || connectionState === 'checking' || connectionState === 'connecting';
     const isFailed = connectionState === 'failed';

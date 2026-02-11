@@ -61,12 +61,14 @@ const CalendarPage = () => {
         const style = {
             backgroundColor: event.color || '#3b82f6',
             borderRadius: '6px',
-            opacity: 0.9,
+            opacity: 1,
             color: 'white',
-            border: '0px',
+            border: 'none',
             display: 'block',
-            boxShadow: '0 2px 4px rgba(0,0,0,0.1)',
-            fontWeight: '600'
+            boxShadow: '0 2px 4px rgba(0,0,0,0.05)',
+            fontSize: '0.85rem',
+            fontWeight: '500',
+            padding: '2px 5px'
         };
         return {
             style: style
@@ -82,63 +84,71 @@ const CalendarPage = () => {
     if (loading) return <PageLoader />;
 
     return (
-        <div className="max-w-[1600px] mx-auto px-4 sm:px-6 lg:px-8 py-8 animate-fade-in pb-24 h-screen flex flex-col">
+        <div className="h-screen flex flex-col bg-gray-50 dark:bg-gray-900 text-gray-900 dark:text-gray-100 font-sans">
 
-            <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 mb-6 shrink-0">
-                <div>
-                    <h1 className="text-4xl font-extrabold text-transparent bg-clip-text bg-gradient-to-r from-indigo-600 via-purple-600 to-pink-600 dark:from-indigo-400 dark:via-purple-400 dark:to-pink-400 flex items-center gap-3">
-                        <div className="p-3 bg-white dark:bg-gray-800 rounded-2xl shadow-xl shadow-indigo-500/10 dark:shadow-none border border-gray-100 dark:border-gray-700">
-                            <CalendarIcon className="text-indigo-600 dark:text-indigo-400" size={32} />
-                        </div>
-                        Calendar
-                    </h1>
-                    <p className="mt-2 text-lg text-gray-600 dark:text-gray-400 font-medium">Manage your schedule and events efficiently</p>
-                </div>
-                <button
-                    onClick={() => {
-                        handleSelectSlot({
-                            start: new Date(),
-                            end: new Date(new Date().setHours(new Date().getHours() + 1))
-                        });
-                    }}
-                    className="flex items-center gap-2 px-6 py-3 bg-gradient-to-r from-indigo-600 to-purple-600 hover:from-indigo-700 hover:to-purple-700 text-white rounded-xl font-bold transition-all shadow-lg shadow-indigo-500/30 hover:shadow-indigo-500/50 hover:-translate-y-0.5 group"
-                >
-                    <Plus size={22} strokeWidth={2.5} className="group-hover:rotate-90 transition-transform duration-300" />
-                    New Event
-                </button>
-            </div>
+            <div className="max-w-[1920px] mx-auto w-full px-4 sm:px-6 lg:px-8 py-6 flex-1 flex flex-col min-h-0">
 
-            <div className="grid grid-cols-1 lg:grid-cols-4 gap-6 flex-1 min-h-0">
+                {/* Header Section */}
+                <div className="flex flex-col md:flex-row md:items-center justify-between gap-6 mb-6 shrink-0">
+                    <div>
+                        <h1 className="text-3xl font-bold tracking-tight text-gray-900 dark:text-white flex items-center gap-3">
+                            <div className="p-2 bg-indigo-100 dark:bg-indigo-900/50 rounded-lg text-indigo-600 dark:text-indigo-400">
+                                <CalendarIcon size={24} />
+                            </div>
+                            Calendar
+                        </h1>
+                        <p className="mt-1 text-gray-500 dark:text-gray-400">
+                            Manage your schedule and upcoming events
+                        </p>
+                    </div>
 
-                {/* Sidebar */}
-                <div className="lg:col-span-1 h-full overflow-hidden hidden lg:block">
-                    <CalendarSidebar
-                        events={events}
-                        onSelectEvent={handleSelectEvent}
-                        activeFilters={activeFilters}
-                        onFilterChange={setActiveFilters}
-                    />
-                </div>
-
-                {/* Calendar */}
-                <div className="lg:col-span-3 h-full flex flex-col bg-white/50 dark:bg-gray-800/50 backdrop-blur-xl rounded-3xl shadow-2xl overflow-hidden border border-white/20 dark:border-gray-700 relative">
-                    <BigCalendar
-                        localizer={localizer}
-                        events={filteredEvents}
-                        startAccessor="start"
-                        endAccessor="end"
-                        style={{ height: '100%' }}
-                        selectable
-                        onSelectSlot={handleSelectSlot}
-                        onSelectEvent={handleSelectEvent}
-                        eventPropGetter={eventStyleGetter}
-                        views={['month', 'week', 'day', 'agenda']}
-                        components={{
-                            toolbar: CustomToolbar
+                    <button
+                        onClick={() => {
+                            handleSelectSlot({
+                                start: new Date(),
+                                end: new Date(new Date().setHours(new Date().getHours() + 1))
+                            });
                         }}
-                        className="text-gray-900 dark:text-gray-200 custom-calendar p-6"
-                    />
+                        className="flex items-center gap-2 px-6 py-2.5 bg-indigo-600 hover:bg-indigo-700 text-white rounded-full font-medium transition-all shadow-sm hover:shadow-md hover:-translate-y-0.5 active:scale-95"
+                    >
+                        <Plus size={20} />
+                        <span>Create Event</span>
+                    </button>
                 </div>
+
+                <div className="flex-1 min-h-0 grid grid-cols-1 lg:grid-cols-12 gap-6 pb-6">
+
+                    {/* Sidebar */}
+                    <div className="lg:col-span-3 xl:col-span-2 hidden lg:block h-full overflow-hidden">
+                        <CalendarSidebar
+                            events={events}
+                            onSelectEvent={handleSelectEvent}
+                            activeFilters={activeFilters}
+                            onFilterChange={setActiveFilters}
+                        />
+                    </div>
+
+                    {/* Calendar Area */}
+                    <div className="lg:col-span-9 xl:col-span-10 h-full bg-white dark:bg-gray-800 rounded-3xl shadow-sm border border-gray-200 dark:border-gray-700 flex flex-col overflow-hidden relative">
+                        <BigCalendar
+                            localizer={localizer}
+                            events={filteredEvents}
+                            startAccessor="start"
+                            endAccessor="end"
+                            style={{ height: '100%' }}
+                            selectable
+                            onSelectSlot={handleSelectSlot}
+                            onSelectEvent={handleSelectEvent}
+                            eventPropGetter={eventStyleGetter}
+                            views={['month', 'week', 'day', 'agenda']}
+                            components={{
+                                toolbar: CustomToolbar
+                            }}
+                            className="text-gray-900 dark:text-gray-200 custom-calendar"
+                        />
+                    </div>
+                </div>
+
             </div>
 
             <EventModal
@@ -149,134 +159,125 @@ const CalendarPage = () => {
                 onDelete={selectedEvent && selectedEvent._id ? handleDelete : null}
             />
 
-            {/* Custom CSS overrides for React Big Calendar Dark Mode */}
+            {/* Premium Calendar Styles */}
             <style>{`
-                /* General Calendar Styles */
-                .rbc-calendar {
-                    font-family: inherit;
-                    color: inherit;
+                .custom-calendar {
+                    font-family: 'Inter', system-ui, -apple-system, sans-serif;
                 }
                 
-                /* Month View */
-                .rbc-header {
-                    padding: 16px 0;
-                    font-weight: 700;
-                    text-transform: uppercase;
-                    font-size: 0.75rem;
-                    letter-spacing: 0.05em;
-                    color: #6b7280; /* gray-500 */
-                    border-bottom: 2px solid #e5e7eb;
-                }
-                .dark .rbc-header {
-                    color: #9ca3af; /* gray-400 */
-                    border-bottom-color: #374151;
-                }
-                .rbc-month-view {
+                /* Removing default borders for a cleaner look */
+                .rbc-month-view, .rbc-time-view, .rbc-agenda-view {
                     border: none;
                 }
-                .rbc-day-bg {
-                    background-color: transparent;
+                .rbc-header {
+                    border-bottom: 1px solid #f3f4f6;
+                    padding: 12px 0;
+                    font-size: 0.75rem;
+                    font-weight: 600;
+                    text-transform: uppercase;
+                    letter-spacing: 0.05em;
+                    color: #9ca3af;
                 }
-                .rbc-off-range-bg {
-                    background-color: rgba(243, 244, 246, 0.4);
-                }
-                .dark .rbc-off-range-bg {
-                    background-color: rgba(17, 24, 39, 0.4);
-                }
-                .rbc-day-bg + .rbc-day-bg {
-                    border-left: 1px solid rgba(229, 231, 235, 0.5);
-                }
-                .dark .rbc-day-bg + .rbc-day-bg {
-                    border-left-color: rgba(55, 65, 81, 0.5);
-                }
-                .rbc-month-row + .rbc-month-row {
-                    border-top: 1px solid rgba(229, 231, 235, 0.5);
-                }
-                .dark .rbc-month-row + .rbc-month-row {
-                    border-top-color: rgba(55, 65, 81, 0.5);
+                .dark .rbc-header {
+                    border-bottom-color: #374151;
+                    color: #6b7280;
                 }
 
-                /* Dates */
+                /* Month View Cells */
+                .rbc-month-row {
+                    border-top: 1px solid #f3f4f6;
+                }
+                .dark .rbc-month-row {
+                    border-top-color: #374151;
+                }
+                .rbc-day-bg + .rbc-day-bg {
+                    border-left: 1px solid #f3f4f6;
+                }
+                .dark .rbc-day-bg + .rbc-day-bg {
+                    border-left-color: #374151;
+                }
+                
+                /* Date indicator */
                 .rbc-date-cell {
                     padding: 8px;
-                    font-weight: 600;
+                    text-align: center;
                     font-size: 0.9rem;
-                    color: #374151;
-                    transition: all 0.2s;
+                    font-weight: 500;
+                    color: #4b5563;
                 }
                 .dark .rbc-date-cell {
-                    color: #d1d5db;
+                    color: #9ca3af;
                 }
-                .rbc-today {
-                    background-color: rgba(99, 102, 241, 0.1) !important; /* indigo-500/10 */
+                
+                /* Current Day Highlight - Circle Style */
+                .rbc-now.rbc-date-cell {
+                    color: #4f46e5; /* indigo-600 */
+                    font-weight: 700;
+                    position: relative;
                 }
-                .rbc-now {
-                    font-weight: 800;
+                .rbc-now.rbc-date-cell > a {
+                    background: #eef2ff;
                     color: #4f46e5;
-                    font-size: 1.1rem;
+                    width: 28px;
+                    height: 28px;
+                    display: inline-flex;
+                    align-items: center;
+                    justify-content: center;
+                    border-radius: 50%;
                 }
-                .dark .rbc-now {
+                .dark .rbc-now.rbc-date-cell > a {
+                    background: #312e81;
                     color: #818cf8;
+                }
+
+                /* Off-range dates */
+                .rbc-off-range-bg {
+                    background: #f9fafb;
+                }
+                .dark .rbc-off-range-bg {
+                    background: #111827;
                 }
 
                 /* Events */
                 .rbc-event {
-                    border: none;
                     border-radius: 6px;
-                    padding: 2px 8px;
-                    font-size: 0.75rem;
-                    font-weight: 600;
-                    box-shadow: 0 1px 2px rgba(0,0,0,0.1);
-                    transition: transform 0.1s ease, box-shadow 0.1s ease;
+                    box-shadow: 0 1px 2px rgba(0,0,0,0.05);
                 }
-                .rbc-event:hover {
-                    transform: translateY(-1px);
-                    box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.2);
-                    z-index: 10;
-                }
-                .rbc-event-label {
-                    display: none; /* simpler look */
-                }
-
-                /* Time View / Agenda */
-                .rbc-time-view {
-                    border: none;
-                }
+                
+                /* Time Grid / Week View */
                 .rbc-time-header-content {
-                    border-left: 1px solid rgba(229, 231, 235, 0.5);
+                    border-left: 1px solid #f3f4f6;
                 }
                 .dark .rbc-time-header-content {
-                    border-left-color: rgba(55, 65, 81, 0.5);
+                    border-left-color: #374151;
                 }
                 .rbc-time-content {
-                    border-top: 1px solid rgba(229, 231, 235, 0.5);
+                    border-top: 1px solid #f3f4f6;
                 }
                 .dark .rbc-time-content {
-                    border-top-color: rgba(55, 65, 81, 0.5);
+                    border-top-color: #374151;
                 }
                 .rbc-timeslot-group {
-                    border-bottom: 1px solid rgba(243, 244, 246, 0.5);
+                    border-bottom: 1px solid #f9fafb;
                 }
                 .dark .rbc-timeslot-group {
-                    border-bottom-color: rgba(55, 65, 81, 0.5);
-                }
-                .rbc-day-slot .rbc-time-slot {
-                    border-top: 1px solid rgba(249, 250, 251, 0.5);
-                }
-                .dark .rbc-day-slot .rbc-time-slot {
-                    border-top-color: rgba(55, 65, 81, 0.2);
+                    border-bottom-color: #1f2937;
                 }
                 .rbc-time-gutter .rbc-timeslot-group {
-                    border-bottom: 1px solid rgba(229, 231, 235, 0.5);
-                    font-size: 0.75rem;
-                    color: #9ca3af;
+                    border-bottom: 1px solid #f3f4f6;
                 }
                 .dark .rbc-time-gutter .rbc-timeslot-group {
-                    border-bottom-color: rgba(55, 65, 81, 0.5);
-                    color: #6b7280;
+                    border-bottom-color: #374151;
                 }
+                
+                /* Today column highlight in week view */
+                .rbc-day-slot.rbc-today {
+                    background-color: transparent !important; /* Managed by day-bg usually, keeping simple */
+                }
+                
+                /* Current time indicator line */
                 .rbc-current-time-indicator {
-                    background-color: #ef4444; /* red-500 */
+                    background-color: #ef4444;
                     height: 2px;
                 }
             `}</style>
