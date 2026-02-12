@@ -1,21 +1,71 @@
 import asyncHandler from 'express-async-handler';
+import mongoose from 'mongoose';
 import User from '../models/User.js';
 import Task from '../models/Task.js';
 import Team from '../models/Team.js';
 import Activity from '../models/Activity.js';
 import { createNotifications } from '../utils/notificationService.js';
 
-// Helper to get stats properly
+// ─── Batch helper: get stats for ALL members in 2 queries instead of N*2 ─────
+const getBatchMemberStats = async (memberIds) => {
+    try {
+        if (!memberIds || memberIds.length === 0) return {};
+
+        // Convert to ObjectIds if needed
+        const objectIds = memberIds.map(id =>
+            typeof id === 'string' ? new mongoose.Types.ObjectId(id) : id
+        );
+
+        // Two aggregate queries instead of 2*N individual countDocuments
+        const [assignedCounts, completedCounts] = await Promise.all([
+            Task.aggregate([
+                { $match: { assignedTo: { $in: objectIds } } },
+                { $group: { _id: '$assignedTo', count: { $sum: 1 } } }
+            ]),
+            Task.aggregate([
+                { $match: { completedBy: { $in: objectIds } } },
+                { $group: { _id: '$completedBy', count: { $sum: 1 } } }
+            ])
+        ]);
+
+        const statsMap = {};
+
+        // Initialize all members with 0
+        objectIds.forEach(id => {
+            statsMap[id.toString()] = { tasksAssigned: 0, tasksCompleted: 0 };
+        });
+
+        // Map assigned counts
+        assignedCounts.forEach(item => {
+            const key = item._id.toString();
+            if (statsMap[key]) {
+                statsMap[key].tasksAssigned = item.count;
+            }
+        });
+
+        // Map completed counts
+        completedCounts.forEach(item => {
+            const key = item._id.toString();
+            if (statsMap[key]) {
+                statsMap[key].tasksCompleted = item.count;
+            }
+        });
+
+        return statsMap;
+    } catch (error) {
+        console.error('Error getting batch member stats:', error);
+        return {};
+    }
+};
+
+// Legacy single-member helper (kept for addTeamMember endpoint)
 const getMemberStats = async (memberId) => {
     try {
         if (!memberId) return { tasksAssigned: 0, tasksCompleted: 0 };
-
-        // Count tasks ASSIGNED to this member
-        const tasksAssigned = await Task.countDocuments({ assignedTo: memberId });
-
-        // Count tasks ACTUALLY COMPLETED by this member (regardless of who it was assigned to)
-        const tasksCompleted = await Task.countDocuments({ completedBy: memberId });
-
+        const [tasksAssigned, tasksCompleted] = await Promise.all([
+            Task.countDocuments({ assignedTo: memberId }),
+            Task.countDocuments({ completedBy: memberId })
+        ]);
         return { tasksAssigned, tasksCompleted };
     } catch (error) {
         console.error(`Error getting stats for member ${memberId}:`, error);
@@ -27,73 +77,80 @@ const getMemberStats = async (memberId) => {
 // @route   GET /api/team
 // @access  Private
 const getTeamMembers = asyncHandler(async (req, res) => {
-    // 1. Migration Check: If User has legacy team data but no Team document, create one
-    // We only do this logic if they have members in their legacy array.
-    const user = await User.findById(req.user._id);
+    // 1. Migration Check: Only run once — skip if user already has teams
     const ownedTeamsCount = await Team.countDocuments({ owner: req.user._id });
 
-    if (ownedTeamsCount === 0 && (user.teamMembers.length > 0 || user.role === 'team_head' || user.role === 'admin')) {
-        // Create default team from legacy data
-        // Check if there are members to migrate, or just create an empty team if they are head/admin
-        await Team.create({
-            name: user.teamName || 'My Team',
-            description: user.teamDescription || 'Team managed by you',
-            owner: user._id,
-            members: user.teamMembers
-        });
-        // Clear legacy to avoid confusion? Optional. Keeping it safe for now.
+    if (ownedTeamsCount === 0 && (req.user.role === 'team_head' || req.user.role === 'admin')) {
+        // Check if legacy data exists before querying User fully
+        const user = await User.findById(req.user._id).select('teamMembers teamName teamDescription');
+        if (user) {
+            await Team.create({
+                name: user.teamName || 'My Team',
+                description: user.teamDescription || 'Team managed by you',
+                owner: req.user._id,
+                members: user.teamMembers || []
+            });
+        }
     }
 
     // 2. Fetch Owned Teams
     const ownedTeams = await Team.find({ owner: req.user._id })
         .populate('members', 'name email role');
 
-    // 3. Fetch Participating Teams
-    const participatingTeams = await Team.find({ members: req.user._id })
-        .populate('owner', 'name email')
+    // 3. Fetch Participating Teams (exclude owned to avoid duplicates)
+    const participatingTeams = await Team.find({
+        members: req.user._id,
+        owner: { $ne: req.user._id }
+    })
+        .populate('owner', 'name email role')
         .populate('members', 'name email role');
+
+    // 4. Collect ALL unique member IDs across all teams for a single batch query
+    const allMemberIds = new Set();
+
+    // Add the current user (owner of owned teams)
+    allMemberIds.add(req.user._id.toString());
+
+    for (const team of ownedTeams) {
+        team.members.filter(m => m !== null).forEach(m => allMemberIds.add(m._id.toString()));
+    }
+
+    for (const team of participatingTeams) {
+        if (team.owner?._id) allMemberIds.add(team.owner._id.toString());
+        team.members.filter(m => m !== null).forEach(m => allMemberIds.add(m._id.toString()));
+    }
+
+    // 5. Single batch stats query (2 DB queries instead of N*2)
+    const statsMap = await getBatchMemberStats([...allMemberIds]);
 
     const resultTeams = [];
 
-    // Process Owned Teams
+    // ── Process Owned Teams ──────────────────────────────────────────────────
     for (const team of ownedTeams) {
-        const membersWithStats = await Promise.all(
-            team.members.filter(m => m !== null).map(async (m) => {
-                const stats = await getMemberStats(m._id);
-                return {
-                    _id: m._id,
-                    name: m.name,
-                    email: m.email,
-                    role: m.role,
-                    tasksAssigned: stats.tasksAssigned,
-                    tasksCompleted: stats.tasksCompleted
-                };
-            })
+        const membersWithStats = team.members.filter(m => m !== null).map(m => ({
+            _id: m._id,
+            name: m.name,
+            email: m.email,
+            role: m.role,
+            tasksAssigned: statsMap[m._id.toString()]?.tasksAssigned || 0,
+            tasksCompleted: statsMap[m._id.toString()]?.tasksCompleted || 0,
+        }));
+
+        // Add the team owner (current user) at the top if not already included
+        const ownerAlreadyIncluded = membersWithStats.some(
+            m => m._id.toString() === req.user._id.toString()
         );
 
-        // Add team owner/head to the members list with their stats
-        try {
-            const ownerUser = await User.findById(team.owner).select('name email role');
-            if (ownerUser) {
-                const ownerStats = await getMemberStats(team.owner);
-                const ownerData = {
-                    _id: ownerUser._id,
-                    name: ownerUser.name,
-                    email: ownerUser.email,
-                    role: ownerUser.role || 'team_head',
-                    tasksAssigned: ownerStats.tasksAssigned,
-                    tasksCompleted: ownerStats.tasksCompleted,
-                    isOwner: true // Flag to identify owner in frontend
-                };
-
-                // Check if owner is not already in members array (avoid duplicates)
-                const ownerAlreadyIncluded = membersWithStats.some(m => m._id.toString() === team.owner.toString());
-                if (!ownerAlreadyIncluded) {
-                    membersWithStats.unshift(ownerData); // Add at the beginning
-                }
-            }
-        } catch (error) {
-            console.error('Error adding team owner stats:', error);
+        if (!ownerAlreadyIncluded) {
+            membersWithStats.unshift({
+                _id: req.user._id,
+                name: req.user.name,
+                email: req.user.email,
+                role: req.user.role || 'team_head',
+                tasksAssigned: statsMap[req.user._id.toString()]?.tasksAssigned || 0,
+                tasksCompleted: statsMap[req.user._id.toString()]?.tasksCompleted || 0,
+                isOwner: true
+            });
         }
 
         resultTeams.push({
@@ -106,21 +163,35 @@ const getTeamMembers = asyncHandler(async (req, res) => {
         });
     }
 
-    // Process Participating Teams
+    // ── Process Participating Teams (FIX: include team owner in member list) ─
     for (const team of participatingTeams) {
-        const membersWithStats = await Promise.all(
-            team.members.filter(m => m !== null).map(async (m) => {
-                const stats = await getMemberStats(m._id);
-                return {
-                    _id: m._id,
-                    name: m.name,
-                    email: m.email,
-                    role: m.role,
-                    tasksAssigned: stats.tasksAssigned,
-                    tasksCompleted: stats.tasksCompleted
-                };
-            })
-        );
+        const membersWithStats = team.members.filter(m => m !== null).map(m => ({
+            _id: m._id,
+            name: m.name,
+            email: m.email,
+            role: m.role,
+            tasksAssigned: statsMap[m._id.toString()]?.tasksAssigned || 0,
+            tasksCompleted: statsMap[m._id.toString()]?.tasksCompleted || 0,
+        }));
+
+        // FIX: Add team owner to the member list so members can see the full team
+        if (team.owner?._id) {
+            const ownerAlreadyIncluded = membersWithStats.some(
+                m => m._id.toString() === team.owner._id.toString()
+            );
+
+            if (!ownerAlreadyIncluded) {
+                membersWithStats.unshift({
+                    _id: team.owner._id,
+                    name: team.owner.name,
+                    email: team.owner.email,
+                    role: team.owner.role || 'team_head',
+                    tasksAssigned: statsMap[team.owner._id.toString()]?.tasksAssigned || 0,
+                    tasksCompleted: statsMap[team.owner._id.toString()]?.tasksCompleted || 0,
+                    isOwner: true
+                });
+            }
+        }
 
         resultTeams.push({
             id: team._id.toString(),
@@ -159,8 +230,6 @@ const createNewTeam = asyncHandler(async (req, res) => {
 // @desc    Add member to a specific team
 // @route   POST /api/team
 // @access  Private (Owner only)
-// Note: Route is still /api/team for backwards compatibility with "invite" feature if desired,
-// but we check params carefully.
 const addTeamMember = asyncHandler(async (req, res) => {
     const { email, teamId } = req.body;
 
@@ -171,15 +240,11 @@ const addTeamMember = asyncHandler(async (req, res) => {
 
     let targetTeam;
 
-    // If teamId is provided, find that team
     if (teamId) {
         targetTeam = await Team.findOne({ _id: teamId, owner: req.user._id });
     } else {
-        // Fallback: If no teamId (legacy call), use the first owned team
-        // This keeps backward compatibility with the frontend 'addTeamMember' if it wasn't validly updated
         targetTeam = await Team.findOne({ owner: req.user._id });
 
-        // If still no team (e.g. migration hasn't run or first time), create one
         if (!targetTeam) {
             targetTeam = await Team.create({
                 name: 'My Team',
@@ -207,7 +272,11 @@ const addTeamMember = asyncHandler(async (req, res) => {
         throw new Error('You cannot add yourself to your team');
     }
 
-    if (targetTeam.members.includes(userToAdd._id)) {
+    // BUG FIX: .includes() doesn't work with ObjectIds — use .some() with .toString()
+    const alreadyMember = targetTeam.members.some(
+        id => id.toString() === userToAdd._id.toString()
+    );
+    if (alreadyMember) {
         res.status(400);
         throw new Error('User already in this team');
     }
@@ -219,7 +288,7 @@ const addTeamMember = asyncHandler(async (req, res) => {
     const io = req.app.get('socketio');
     const recipientIds = [...targetTeam.members, targetTeam.owner]
         .map(id => id.toString())
-        .filter(id => id !== req.user._id.toString()); // Don't notify the one who added
+        .filter(id => id !== req.user._id.toString());
 
     if (recipientIds.length > 0) {
         await createNotifications(recipientIds, {
@@ -239,20 +308,44 @@ const addTeamMember = asyncHandler(async (req, res) => {
         type: 'member_add'
     });
 
-    // Return the updated member list for this team to update frontend
-    const populatedTeam = await Team.findById(targetTeam._id).populate('members', 'name email role');
+    // Return the updated member list (including the owner so they don't vanish from UI)
+    const populatedTeam = await Team.findById(targetTeam._id)
+        .populate('members', 'name email role')
+        .populate('owner', 'name email role');
 
-    const updatedMembers = await Promise.all(populatedTeam.members.map(async m => {
-        const stats = await getMemberStats(m._id);
-        return {
-            _id: m._id,
-            name: m.name,
-            email: m.email,
-            role: m.role,
-            tasksAssigned: stats.tasksAssigned,
-            tasksCompleted: stats.tasksCompleted
-        };
-    }));
+    const allIds = [
+        populatedTeam.owner._id,
+        ...populatedTeam.members.filter(m => m !== null).map(m => m._id)
+    ];
+    const statsMap = await getBatchMemberStats(allIds);
+
+    // Owner first, then members
+    const updatedMembers = [];
+
+    // Add owner at the top
+    updatedMembers.push({
+        _id: populatedTeam.owner._id,
+        name: populatedTeam.owner.name,
+        email: populatedTeam.owner.email,
+        role: populatedTeam.owner.role || 'team_head',
+        tasksAssigned: statsMap[populatedTeam.owner._id.toString()]?.tasksAssigned || 0,
+        tasksCompleted: statsMap[populatedTeam.owner._id.toString()]?.tasksCompleted || 0,
+        isOwner: true
+    });
+
+    // Add members (skip if same as owner)
+    populatedTeam.members.filter(m => m !== null).forEach(m => {
+        if (m._id.toString() !== populatedTeam.owner._id.toString()) {
+            updatedMembers.push({
+                _id: m._id,
+                name: m.name,
+                email: m.email,
+                role: m.role,
+                tasksAssigned: statsMap[m._id.toString()]?.tasksAssigned || 0,
+                tasksCompleted: statsMap[m._id.toString()]?.tasksCompleted || 0,
+            });
+        }
+    });
 
     res.status(200).json(updatedMembers);
 });
@@ -274,7 +367,9 @@ const removeTeamMember = asyncHandler(async (req, res) => {
         throw new Error('Team not found or you are not the owner');
     }
 
-    if (!team.members.includes(memberId)) {
+    // BUG FIX: .includes() doesn't work with ObjectIds — use .some() with .toString()
+    const memberExists = team.members.some(id => id.toString() === memberId);
+    if (!memberExists) {
         res.status(404);
         throw new Error('Member not found in this team');
     }
@@ -309,21 +404,18 @@ const removeTeamMember = asyncHandler(async (req, res) => {
 });
 
 // @desc    Update team details (name, description)
-// @route   PUT /api/team/:id/details <-- New specific
-// @route   PUT /api/team             <-- Old general
+// @route   PUT /api/team
 const updateTeamDetails = asyncHandler(async (req, res) => {
-    const { name, description, teamId } = req.body; // Expect teamId in body if specific
+    const { name, description, teamId } = req.body;
 
     let team;
     if (teamId) {
         team = await Team.findOne({ _id: teamId, owner: req.user._id });
     } else {
-        // Fallback to first team
         team = await Team.findOne({ owner: req.user._id });
     }
 
     if (!team) {
-        // If wanting to create, use createNewTeam.
         res.status(404);
         throw new Error('Team not found');
     }
@@ -334,7 +426,7 @@ const updateTeamDetails = asyncHandler(async (req, res) => {
     await team.save();
 
     res.json({
-        teamName: team.name, // Return unified format if needed by frontend
+        teamName: team.name,
         teamDescription: team.description,
         id: team._id
     });
@@ -346,33 +438,24 @@ const updateTeamDetails = asyncHandler(async (req, res) => {
 const getTeamActivity = asyncHandler(async (req, res) => {
     const { teamId } = req.params;
 
-    // Verify the user is part of this team (either owner or member)
     const team = await Team.findById(teamId);
     if (!team) {
-        // Fallback check if it was a user ID (old code passed teamId as userId sometimes)
-        // But new model has Team._id.
-        // If migration happened, teamId should be Team ID.
         res.status(404);
         throw new Error('Team not found');
     }
 
     const isOwner = team.owner.toString() === req.user._id.toString();
-    const isMember = team.members.includes(req.user._id);
+    const isMember = team.members.some(m => m.toString() === req.user._id.toString());
 
     if (!isOwner && !isMember) {
-        res.status(401);
+        res.status(403);
         throw new Error('Not authorized to view this team\'s activity');
     }
 
-    // Prefer querying by specific Team ID if data exists, else fallback to owner for legacy
-    // Using $or to catch both new activities (with team field) and old ones (owner based)
-    // Filter strictly by owner if no team field to prevent cross-leakage is hard if only owner exists
-    // But we added 'team' field to model now.
-
     const activities = await Activity.find({
         $or: [
-            { team: teamId }, // New standard
-            { teamOwner: team.owner, team: { $exists: false } } // Fallback to owner ONLY if team not set (legacy)
+            { team: teamId },
+            { teamOwner: team.owner, team: { $exists: false } }
         ]
     })
         .sort({ createdAt: -1 })
@@ -394,12 +477,7 @@ const deleteTeam = asyncHandler(async (req, res) => {
         throw new Error('Team not found or you are not the owner');
     }
 
-    // Optional: Check if it's the last team? 
-    // Or just allow deletion. If they delete all, they get empty view handled by frontend/getMembers
-
     await team.deleteOne();
-
-    // Also remove associated activities? 
     await Activity.deleteMany({ team: teamId });
 
     res.status(200).json({ id: teamId, message: 'Team deleted' });

@@ -40,8 +40,6 @@ const TeamManagement = () => {
     fetchAllUsers
   } = useTeamManagement();
 
-
-
   return (
     <div className="min-h-screen bg-gradient-to-br from-gray-50 via-white to-indigo-50/30 dark:from-gray-900 dark:via-gray-900 dark:to-indigo-950/30">
       {/* Animated Background Elements */}
@@ -118,9 +116,7 @@ const TeamManagement = () => {
                 </div>
                 {isTeamOwner && (
                   <button
-                    onClick={() => {
-                      if (window.confirm("Delete this team? This action cannot be undone.")) deleteTeam(currentTeam.id);
-                    }}
+                    onClick={() => deleteTeam(currentTeam.id)}
                     className="ml-2 p-2 rounded-lg text-red-500 hover:bg-red-50 dark:hover:bg-red-900/20 transition-colors"
                     title="Delete team"
                   >
@@ -193,8 +189,8 @@ const TeamManagement = () => {
             />
           </motion.div>
         </motion.div>
-      </div>
-    </div>
+      </div >
+    </div >
   );
 };
 

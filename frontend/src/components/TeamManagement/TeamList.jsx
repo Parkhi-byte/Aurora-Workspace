@@ -187,16 +187,17 @@ const TeamList = ({ filteredMembers, teamMembers, searchTerm, setSearchTerm, hov
                                 className="group relative bg-white/60 dark:bg-gray-800/60 hover:bg-white dark:hover:bg-gray-800 rounded-3xl p-4 md:p-5 border border-transparent hover:border-indigo-100 dark:hover:border-indigo-900/30 shadow-sm hover:shadow-xl hover:shadow-indigo-500/10 hover:z-10 transition-all duration-500 overflow-hidden"
                             >
                                 <div className="absolute inset-0 bg-gradient-to-r from-transparent via-transparent to-indigo-500/5 opacity-0 group-hover:opacity-100 transition-opacity duration-500 pointer-events-none" />
-                                <div className="flex items-center justify-between">
-                                    <div className="flex items-center gap-5">
+                                <div className="flex items-center gap-4 lg:grid lg:grid-cols-[1fr_180px_180px] lg:gap-6 lg:items-center">
+                                    {/* Left: Avatar + Info */}
+                                    <div className="flex items-center gap-5 min-w-0">
                                         {/* Avatar */}
-                                        <div className={`relative w-14 h-14 rounded-2xl flex items-center justify-center text-white font-bold text-xl shadow-lg ring-4 ring-white dark:ring-gray-800 transition-transform duration-500 group-hover:scale-110 group-hover:rotate-3 ${member.role === 'admin'
+                                        <div className={`relative w-14 h-14 rounded-2xl flex-shrink-0 flex items-center justify-center text-white font-bold text-xl shadow-lg ring-4 ring-white dark:ring-gray-800 transition-transform duration-500 group-hover:scale-110 group-hover:rotate-3 ${member.role === 'admin' || member.role === 'team_head'
                                             ? 'bg-gradient-to-br from-violet-600 to-fuchsia-600'
                                             : 'bg-gradient-to-br from-blue-500 to-cyan-500'
                                             }`}>
                                             {member.name?.[0]?.toUpperCase() || <User size={24} />}
 
-                                            {member.role === 'admin' && (
+                                            {(member.role === 'admin' || member.role === 'team_head') && (
                                                 <div className="absolute -top-2 -right-2 bg-amber-400 text-amber-900 p-1 rounded-full border-2 border-white dark:border-gray-800 shadow-sm z-10">
                                                     <Shield size={10} fill="currentColor" />
                                                 </div>
@@ -204,31 +205,32 @@ const TeamList = ({ filteredMembers, teamMembers, searchTerm, setSearchTerm, hov
                                         </div>
 
                                         {/* Info */}
-                                        <div>
+                                        <div className="min-w-0">
                                             <h4 className="font-bold text-gray-900 dark:text-white text-base md:text-lg flex items-center gap-2 group-hover:text-indigo-600 dark:group-hover:text-indigo-400 transition-colors">
-                                                {member.name || 'Anonymous User'}
-                                                {member.isOwner && (
-                                                    <span className="text-[10px] font-black px-2 py-0.5 rounded-full bg-gradient-to-r from-amber-400 to-orange-500 text-white border border-amber-200 shadow-sm">
-                                                        OWNER
+                                                <span className="truncate">{member.name || 'Anonymous User'}</span>
+                                                {member.role === 'admin' && (
+                                                    <span className="text-[10px] font-black px-2 py-0.5 rounded-full bg-gradient-to-r from-violet-500 to-fuchsia-500 text-white border border-violet-300 shadow-sm flex-shrink-0 inline-flex items-center gap-1">
+                                                        <BadgeCheck size={10} /> ADMIN
                                                     </span>
                                                 )}
-                                                {member.role === 'admin' && (
-                                                    <BadgeCheck size={16} className="text-violet-500" fill="currentColor" />
+                                                {member.role === 'team_head' && (
+                                                    <span className="text-[10px] font-black px-2 py-0.5 rounded-full bg-gradient-to-r from-amber-400 to-orange-500 text-white border border-amber-200 shadow-sm flex-shrink-0 inline-flex items-center gap-1">
+                                                        <Shield size={10} /> HEAD
+                                                    </span>
                                                 )}
                                             </h4>
-                                            <div className="flex items-center text-gray-500 dark:text-gray-400 text-xs md:text-sm mt-0.5 font-medium">
-                                                <Mail size={12} className="mr-1.5 opacity-60" />
-                                                {member.email}
+                                            <div className="flex items-center text-gray-500 dark:text-gray-400 text-xs md:text-sm mt-0.5 font-medium truncate">
+                                                <Mail size={12} className="mr-1.5 opacity-60 flex-shrink-0" />
+                                                <span className="truncate">{member.email}</span>
                                             </div>
                                         </div>
                                     </div>
 
-                                    {/* Stats (Desktop) */}
-                                    <div className="hidden lg:flex flex-col w-40 px-6">
-                                        {/* Calculate efficiency based on tasks */}
+                                    {/* Center: Efficiency Stats (Desktop only) */}
+                                    <div className="hidden lg:flex flex-col justify-center">
                                         {(() => {
                                             const tasksCompleted = member.tasksCompleted || 0;
-                                            const totalTasks = member.totalTasks || member.tasksAssigned || 10; // Default to 10 if not available
+                                            const totalTasks = member.totalTasks || member.tasksAssigned || 10;
                                             const efficiency = totalTasks > 0 ? Math.round((tasksCompleted / totalTasks) * 100) : 0;
 
                                             return (
@@ -253,9 +255,9 @@ const TeamList = ({ filteredMembers, teamMembers, searchTerm, setSearchTerm, hov
                                         })()}
                                     </div>
 
-                                    {/* Actions */}
-                                    <div className="flex items-center gap-4">
-                                        <div className={`px-3 py-1 rounded-full text-[10px] font-black uppercase tracking-widest border transition-colors ${member.role === 'admin'
+                                    {/* Right: Role badge + Actions */}
+                                    <div className="flex items-center justify-end gap-3 flex-shrink-0 ml-auto lg:ml-0">
+                                        <div className={`min-w-[100px] text-center px-3 py-1 rounded-full text-[10px] font-black uppercase tracking-widest border transition-colors whitespace-nowrap ${member.role === 'admin' || member.role === 'team_head'
                                             ? 'bg-gradient-to-r from-violet-100 to-fuchsia-100 text-violet-700 border-violet-200 dark:from-violet-900/40 dark:to-fuchsia-900/40 dark:text-violet-300 dark:border-violet-700'
                                             : 'bg-gradient-to-r from-blue-100 to-cyan-100 text-blue-700 border-blue-200 dark:from-blue-900/40 dark:to-cyan-900/40 dark:text-blue-300 dark:border-blue-700'
                                             }`}>
@@ -273,7 +275,7 @@ const TeamList = ({ filteredMembers, teamMembers, searchTerm, setSearchTerm, hov
                                                     <button className="w-full text-left px-3 py-2 text-xs font-medium text-gray-600 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-gray-700/50 rounded-lg transition-colors flex items-center gap-2">
                                                         <User size={14} /> View Profile
                                                     </button>
-                                                    {handleRemoveMember && !member.isOwner && member.role !== 'admin' && ( // Prevent removing owner and admin
+                                                    {handleRemoveMember && !member.isOwner && member.role !== 'admin' && (
                                                         <button
                                                             onClick={(e) => {
                                                                 e.stopPropagation();

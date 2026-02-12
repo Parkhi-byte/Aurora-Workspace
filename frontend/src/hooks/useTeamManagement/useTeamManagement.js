@@ -5,19 +5,45 @@ import { useAuth } from '../../context/AuthContext';
 const getToken = (user) =>
     user?.token || JSON.parse(localStorage.getItem('user'))?.token;
 
-// ─── Auto-clear timeout helper ───────────────────────────────────────────────
+// ─── Cache helpers ───────────────────────────────────────────────────────────
+const CACHE_KEY = 'aurora_team_cache';
 const AUTO_CLEAR_MS = 3000;
+
+const getCachedData = () => {
+    try {
+        const cached = localStorage.getItem(CACHE_KEY);
+        if (cached) {
+            const { teams, currentTeamId, activities } = JSON.parse(cached);
+            if (Array.isArray(teams) && teams.length > 0) return { teams, currentTeamId, activities: activities || [] };
+        }
+    } catch { }
+    return null;
+};
+
+
 
 export const useTeamManagement = () => {
     const { user } = useAuth();
 
+    // ── Initialize from cache for instant render ─────────────────────────────
+    const cached = useRef(getCachedData()).current;
+
     // ── Core state ───────────────────────────────────────────────────────────
-    const [teams, setTeams] = useState([]);
-    const [currentTeamId, setCurrentTeamId] = useState(null);
-    const [activities, setActivities] = useState([]);
-    const [loading, setLoading] = useState(true);
+    const [teams, setTeams] = useState(cached?.teams || []);
+    const [currentTeamId, setCurrentTeamId] = useState(cached?.currentTeamId || null);
+    const [activities, setActivities] = useState(cached?.activities || []);
+    const [loading, setLoading] = useState(!cached);
     const [error, setError] = useState('');
     const [success, setSuccess] = useState('');
+
+    // Sync cache whenever state changes
+    useEffect(() => {
+        if (teams.length > 0) {
+            try {
+                localStorage.setItem(CACHE_KEY, JSON.stringify({ teams, currentTeamId, activities }));
+            } catch { }
+        }
+    }, [teams, currentTeamId, activities]);
 
     // ── Input state ──────────────────────────────────────────────────────────
     const [inviteEmail, setInviteEmail] = useState('');
@@ -45,10 +71,12 @@ export const useTeamManagement = () => {
         if (debounceTimerRef.current) clearTimeout(debounceTimerRef.current);
     }, []);
 
-    // ── Fetch teams ──────────────────────────────────────────────────────────
+    // ── Fetch teams (silently refreshes in background if cache exists) ───────
     const fetchTeams = useCallback(async () => {
         try {
-            setLoading(true);
+            // Only show loading spinner if there's no cached data to display
+            if (!getCachedData()) setLoading(true);
+
             const token = getToken(user);
             const res = await fetch('/api/team', {
                 headers: { 'Authorization': `Bearer ${token}` }
@@ -75,8 +103,10 @@ export const useTeamManagement = () => {
             setTeams(fetchedTeams);
 
             setCurrentTeamId(prev => {
-                if (prev && fetchedTeams.some(t => t.id === prev)) return prev;
-                return fetchedTeams[0]?.id ?? null;
+                const nextId = (prev && fetchedTeams.some(t => t.id === prev))
+                    ? prev
+                    : fetchedTeams[0]?.id ?? null;
+                return nextId;
             });
         } catch {
             setError('Network error fetching teams');
@@ -113,7 +143,6 @@ export const useTeamManagement = () => {
     const isTeamOwner = currentTeam?.isOwner || false;
     const isAdmin = user?.role === 'admin';
 
-    // Keep a ref so callbacks can read the latest without re-creating
     const currentTeamRef = useRef(currentTeam);
     currentTeamRef.current = currentTeam;
 
@@ -223,6 +252,14 @@ export const useTeamManagement = () => {
         if (!isTeamOwner) { alert('Only the team owner can remove members.'); return; }
         if (!window.confirm('Are you sure you want to remove this member?')) return;
 
+        // Optimistic update: Remove from UI immediately
+        const previousTeams = teams;
+        setTeams(prev => prev.map(t =>
+            t.id === currentTeamId
+                ? { ...t, members: t.members.filter(m => m._id !== memberId) }
+                : t
+        ));
+
         try {
             const res = await fetch(`/api/team/${currentTeamId}/member/${memberId}`, {
                 method: 'DELETE',
@@ -230,21 +267,20 @@ export const useTeamManagement = () => {
             });
 
             if (res.ok) {
-                setTeams(prev => prev.map(t =>
-                    t.id === currentTeamId
-                        ? { ...t, members: t.members.filter(m => m._id !== memberId) }
-                        : t
-                ));
                 showSuccess('Member removed from team.');
                 fetchActivities(currentTeamId);
             } else {
+                // Revert on failure
+                setTeams(previousTeams);
                 const data = await res.json();
                 setError(data.message || 'Failed to remove member');
             }
         } catch {
+            // Revert on network error
+            setTeams(previousTeams);
             setError('Network error removing member');
         }
-    }, [isTeamOwner, currentTeamId, user, showSuccess, fetchActivities]);
+    }, [isTeamOwner, currentTeamId, user, showSuccess, fetchActivities, teams]);
 
     const createTeam = useCallback(async (teamName) => {
         if (!teamName?.trim()) return;
